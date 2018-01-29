@@ -10,6 +10,9 @@
 
 #include <gflags/gflags.h>
 
+#include <mutex>
+#include <thread>
+
 // Allow Google Flags in Ubuntu 14
 #ifndef GFLAGS_GFLAGS_H_
     namespace gflags = google;
@@ -53,23 +56,19 @@ DEFINE_double(alpha_pose,               0.6,            "Blending factor (range 
 DEFINE_double(alpha_heatmap,            0.7,            "Blending factor (range 0-1) between heatmap and original frame. 1 will only show the"
                                                         " heatmap, 0 will only show the frame. Only valid for GPU rendering.");
 
+std::mutex outputImageMutex;
+bool outputImageSet = false;
+cv::Mat outputImage;
 
-int main(int argc, char* argv[]) {
-    gflags::ParseCommandLineFlags(&argc, &argv, true);
+std::mutex latestImageMutex;
+bool latestImageSet = false;
+cv::Mat latestImage;
 
-    // outputSize
-    const auto outputSize = op::flagsToPoint(FLAGS_output_resolution, "-1x-1");
-    // netInputSize
-    const auto netInputSize = op::flagsToPoint(FLAGS_net_resolution, "-1x368");
-    // poseModel
-    const auto poseModel = op::flagsToPoseModel(FLAGS_model_pose);
-    // Check no contradictory flags enabled
-    if (FLAGS_alpha_pose < 0. || FLAGS_alpha_pose > 1.)
-        op::error("Alpha value for blending must be in the range [0,1].", __LINE__, __FUNCTION__, __FILE__);
-    if (FLAGS_scale_gap <= 0. && FLAGS_scale_number > 1)
-        op::error("Incompatible flag configuration: scale_gap must be greater than 0 or scale_number = 1.",
-                  __LINE__, __FUNCTION__, __FILE__);
-    
+op::Point<int> outputSize;
+op::Point<int> netInputSize;
+op::PoseModel poseModel;
+
+void process_image() {
     op::ScaleAndSizeExtractor scaleAndSizeExtractor(netInputSize, outputSize, FLAGS_scale_number, FLAGS_scale_gap);
     op::CvMatToOpInput cvMatToOpInput;
     op::CvMatToOpOutput cvMatToOpOutput;
@@ -79,26 +78,24 @@ int main(int argc, char* argv[]) {
                                         !FLAGS_disable_blending, (float)FLAGS_alpha_pose, (float)FLAGS_alpha_heatmap};
     poseGpuRenderer.setElementToRender(FLAGS_part_to_show);
     op::OpOutputToCvMat opOutputToCvMat;
-    op::FrameDisplayer frameDisplayer{"OpenPose Tutorial - Example 2", outputSize};
 
     poseExtractorPtr->initializationOnThread();
     poseGpuRenderer.initializationOnThread();
 
-    ros::init(argc, argv, "golem_campose_node");
-
-    ros::NodeHandle nh;
-    ros::Rate r(10);
-
-    cv::VideoCapture cap;
-
-    if(!cap.open(0)) {
-        ROS_INFO_STREAM("There was an error loading the videocapture...");
-        return -1;
-    }
+    cv::Mat inputImage;
 
     while(ros::ok()) {
-        cv::Mat inputImage;
-        cap >> inputImage;
+        bool skip = false;
+        latestImageMutex.lock();
+        skip = !latestImageSet;
+        if(!skip)
+            inputImage = latestImage.clone();
+        latestImageMutex.unlock();
+
+        if(skip) {
+            usleep(100 * 1000); // Sleep for 100 ms before continuing
+            continue;
+        }
 
         if(inputImage.empty())
             op::error("Could not load frame from camera.", __LINE__, __FUNCTION__, __FILE__);
@@ -121,11 +118,65 @@ int main(int argc, char* argv[]) {
         // Step 5 - Render pose
         poseGpuRenderer.renderPose(outputArray, poseKeypoints, scaleInputToOutput, scaleNetToOutput);
         // Step 6 - OpenPose output format to cv::Mat
-        auto outputImage = opOutputToCvMat.formatToCvMat(outputArray);
+        outputImageMutex.lock();
+        outputImage = opOutputToCvMat.formatToCvMat(outputArray);
+        outputImageSet = true;
+        outputImageMutex.unlock();
+    }
+}
 
-        frameDisplayer.displayFrame(outputImage, 1);
+int main(int argc, char* argv[]) {
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
 
+    // outputSize
+    outputSize = op::flagsToPoint(FLAGS_output_resolution, "-1x-1");
+    // netInputSize
+    netInputSize = op::flagsToPoint(FLAGS_net_resolution, "-1x368");
+    // poseModel
+    poseModel = op::flagsToPoseModel(FLAGS_model_pose);
+    // Check no contradictory flags enabled
+    if (FLAGS_alpha_pose < 0. || FLAGS_alpha_pose > 1.)
+        op::error("Alpha value for blending must be in the range [0,1].", __LINE__, __FUNCTION__, __FILE__);
+    if (FLAGS_scale_gap <= 0. && FLAGS_scale_number > 1)
+        op::error("Incompatible flag configuration: scale_gap must be greater than 0 or scale_number = 1.",
+                  __LINE__, __FUNCTION__, __FILE__);
+
+    op::FrameDisplayer frameDisplayer{"OpenPose Tutorial - Example 2", outputSize};
+
+    ros::init(argc, argv, "golem_campose_node");
+
+    ros::NodeHandle nh;
+    ros::Rate r(30);
+
+    std::thread process_thread(process_image);
+
+    cv::VideoCapture cap;
+
+    if(!cap.open(0)) {
+        ROS_INFO_STREAM("There was an error loading the videocapture...");
+        return -1;
+    }
+
+    while(ros::ok()) {
         ROS_INFO_STREAM("LOOP");
+        latestImageMutex.lock();
+        // TODO: Find a better solution. Thanks to http://answers.opencv.org/question/29957/highguivideocapture-buffer-introducing-lag/?answer=31513#post-id-31513
+        for(int i=0; i<7; i++) { cap >> latestImage; }   // Temporary fix to clearing cap's buffer
+        latestImageSet = true;
+        latestImageMutex.unlock();
+
+        cv::Mat output_image_copy;
+        bool display = false;
+
+        outputImageMutex.lock();
+        display = outputImageSet;
+        if(display)
+            output_image_copy = outputImage.clone();
+        outputImageMutex.unlock();
+
+        if(display)
+            frameDisplayer.displayFrame(output_image_copy, 1);
+
         r.sleep();
         ros::spinOnce();
     }
