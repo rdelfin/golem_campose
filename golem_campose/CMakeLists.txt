@@ -1,5 +1,7 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.1)
 project(golem_campose)
+
+set (CMAKE_CXX_STANDARD 11)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -15,13 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
 # Exports OpenPose_INCLUDE_DIRS, OpenPose_LIBS, OpenPose_FOUND, et. al.
 find_package(OpenPose REQUIRED)
 
-if(${OpenPose_FOUND})
-  message("OpenPose found!")
-  message("OpenPose include dirs: ${OpenPose_INCLUDE_DIRS}")
-  message("OpenPose libraries:    ${OpenPose_LIBS}")
-else()
-  message("OpenPose lost :(")
-endif()
+find_package(gflags REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -127,6 +123,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
 # include
+  ${OpenPose_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -157,7 +154,9 @@ add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catk
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
+  ${OpenPose_LIBS}
   ${catkin_LIBRARIES}
+  gflags
 )
 
 #############
