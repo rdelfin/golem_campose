@@ -89,11 +89,20 @@ int main(int argc, char* argv[]) {
     ros::NodeHandle nh;
     ros::Rate r(10);
 
+    cv::VideoCapture cap;
+
+    if(!cap.open(0)) {
+        ROS_INFO_STREAM("There was an error loading the videocapture...");
+        return -1;
+    }
+
     while(ros::ok()) {
-        
-        cv::Mat inputImage = op::loadImage(FLAGS_image_path, CV_LOAD_IMAGE_COLOR);
+        cv::Mat inputImage;
+        cap >> inputImage;
+
         if(inputImage.empty())
-            op::error("Could not open or find the image: " + FLAGS_image_path, __LINE__, __FUNCTION__, __FILE__);
+            op::error("Could not load frame from camera.", __LINE__, __FUNCTION__, __FILE__);
+        
         const op::Point<int> imageSize{inputImage.cols, inputImage.rows};
         // Step 2 - Get desired scale sizes
         std::vector<double> scaleInputToNetInputs;
