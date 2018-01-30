@@ -59,7 +59,7 @@ add_message_files(
   FILES
   Keypoint.msg
   PersonPose.msg
-  PoseFrame.msg
+  FramePoses.msg
 )
 
 ## Generate services in the 'srv' folder
