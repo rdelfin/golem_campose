@@ -1,17 +1,14 @@
 #include <ros/ros.h>
 
-#include <openpose/core/headers.hpp>
-#include <openpose/filestream/headers.hpp>
-#include <openpose/gui/headers.hpp>
-#include <openpose/pose/headers.hpp>
-#include <openpose/utilities/headers.hpp>
+#include <golem_campose/FramePoses.h>
+#include <golem_campose/PersonPose.h>
+#include <golem_campose/Keypoint.h>
+
+#include <openpose/headers.hpp>
 
 #include <opencv2/opencv.hpp>
 
 #include <gflags/gflags.h>
-
-#include <mutex>
-#include <thread>
 
 // Allow Google Flags in Ubuntu 14
 #ifndef GFLAGS_GFLAGS_H_
@@ -56,75 +53,15 @@ DEFINE_double(alpha_pose,               0.6,            "Blending factor (range 
                                                         " hide it. Only valid for GPU rendering.");
 DEFINE_double(alpha_heatmap,            0.7,            "Blending factor (range 0-1) between heatmap and original frame. 1 will only show the"
                                                         " heatmap, 0 will only show the frame. Only valid for GPU rendering.");
-
-std::mutex outputImageMutex;
-bool outputImageSet = false;
-cv::Mat outputImage;
-
-std::mutex latestImageMutex;
-bool latestImageSet = false;
-cv::Mat latestImage;
+DEFINE_int32(render_pose,               -1,             "Set to 0 for no rendering, 1 for CPU rendering (slightly faster), and 2 for GPU rendering"
+                                                        " (slower but greater functionality, e.g. `alpha_X` flags). If -1, it will pick CPU if"
+                                                        " CPU_ONLY is enabled, or GPU if CUDA is enabled. If rendering is enabled, it will render"
+                                                        " both `outputData` and `cvOutputData` with the original image and desired body part to be"
+                                                        " shown (i.e. keypoints, heat maps or PAFs).");
 
 op::Point<int> outputSize;
 op::Point<int> netInputSize;
 op::PoseModel poseModel;
-
-void process_image() {
-    op::ScaleAndSizeExtractor scaleAndSizeExtractor(netInputSize, outputSize, FLAGS_scale_number, FLAGS_scale_gap);
-    op::CvMatToOpInput cvMatToOpInput;
-    op::CvMatToOpOutput cvMatToOpOutput;
-    auto poseExtractorPtr = std::make_shared<op::PoseExtractorCaffe>(poseModel, FLAGS_model_folder,
-                                                                     FLAGS_num_gpu_start);
-    op::PoseGpuRenderer poseGpuRenderer{poseModel, poseExtractorPtr, (float)FLAGS_render_threshold,
-                                        !FLAGS_disable_blending, (float)FLAGS_alpha_pose, (float)FLAGS_alpha_heatmap};
-    poseGpuRenderer.setElementToRender(FLAGS_part_to_show);
-    op::OpOutputToCvMat opOutputToCvMat;
-
-    poseExtractorPtr->initializationOnThread();
-    poseGpuRenderer.initializationOnThread();
-
-    cv::Mat inputImage;
-
-    while(ros::ok()) {
-        bool skip = false;
-        latestImageMutex.lock();
-        skip = !latestImageSet;
-        if(!skip)
-            inputImage = latestImage.clone();
-        latestImageMutex.unlock();
-
-        if(skip) {
-            usleep(100 * 1000); // Sleep for 100 ms before continuing
-            continue;
-        }
-
-        if(inputImage.empty())
-            op::error("Could not load frame from camera.", __LINE__, __FUNCTION__, __FILE__);
-        
-        const op::Point<int> imageSize{inputImage.cols, inputImage.rows};
-        // Step 2 - Get desired scale sizes
-        std::vector<double> scaleInputToNetInputs;
-        std::vector<op::Point<int>> netInputSizes;
-        double scaleInputToOutput;
-        op::Point<int> outputResolution;
-        std::tie(scaleInputToNetInputs, netInputSizes, scaleInputToOutput, outputResolution)
-            = scaleAndSizeExtractor.extract(imageSize);
-        // Step 3 - Format input image to OpenPose input and output formats
-        const auto netInputArray = cvMatToOpInput.createArray(inputImage, scaleInputToNetInputs, netInputSizes);
-        auto outputArray = cvMatToOpOutput.createArray(inputImage, scaleInputToOutput, outputResolution);
-        // Step 4 - Estimate poseKeypoints
-        poseExtractorPtr->forwardPass(netInputArray, imageSize, scaleInputToNetInputs);
-        const auto poseKeypoints = poseExtractorPtr->getPoseKeypoints();
-        const auto scaleNetToOutput = poseExtractorPtr->getScaleNetToOutput();
-        // Step 5 - Render pose
-        poseGpuRenderer.renderPose(outputArray, poseKeypoints, scaleInputToOutput, scaleNetToOutput);
-        // Step 6 - OpenPose output format to cv::Mat
-        outputImageMutex.lock();
-        outputImage = opOutputToCvMat.formatToCvMat(outputArray);
-        outputImageSet = true;
-        outputImageMutex.unlock();
-    }
-}
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -142,43 +79,76 @@ int main(int argc, char* argv[]) {
         op::error("Incompatible flag configuration: scale_gap must be greater than 0 or scale_number = 1.",
                   __LINE__, __FUNCTION__, __FILE__);
 
-    op::FrameDisplayer frameDisplayer{"OpenPose Tutorial - Example 2", outputSize};
+    const auto poseModel = op::flagsToPoseModel(FLAGS_model_pose);
+    const auto heatMapTypes = op::flagsToHeatMaps(false, false, false);
+    const auto heatMapScale = op::flagsToHeatMapScaleMode(2);
+
+    const auto producerSharedPtr = op::flagsToProducer("", "", "", -1, "1280x720", 30.0);
+
+    op::Wrapper<std::vector<op::Datum>> opWrapper{op::ThreadManagerMode::AsynchronousOut};
+
+    const op::WrapperStructPose wrapperStructPose = {true, netInputSize, outputSize, op::ScaleMode::ZeroToOne, -1,
+                                                     FLAGS_num_gpu_start, FLAGS_scale_number,
+                                                     (float)FLAGS_scale_gap, op::flagsToRenderMode(FLAGS_render_pose),
+                                                     poseModel, true, (float)FLAGS_alpha_pose, (float)FLAGS_alpha_heatmap, FLAGS_part_to_show,
+                                                     FLAGS_model_folder, heatMapTypes, heatMapScale, false,
+                                                     (float)FLAGS_render_threshold, false};
+
+    const op::WrapperStructFace wrapperStructFace{};
+    const op::WrapperStructHand wrapperStructHand{};
+    // Producer (use default to disable any input)
+    const op::WrapperStructInput wrapperStructInput{producerSharedPtr, 0, (long long unsigned int)-1, true, false, 0, false};
+
+    const bool displayGui = false;
+    const bool guiVerbose = false;
+    const bool fullScreen = false;
+    const op::WrapperStructOutput wrapperStructOutput{displayGui, guiVerbose, fullScreen, "",
+                                                      op::stringToDataFormat("yml"),
+                                                      false, "", "", "png", "", "", "png"};
+
+    opWrapper.configure(wrapperStructPose, wrapperStructFace, wrapperStructHand, wrapperStructInput,
+                        wrapperStructOutput);
 
     ros::init(argc, argv, "golem_campose_node");
 
     ros::NodeHandle nh;
     ros::Rate r(30);
 
-    std::thread process_thread(process_image);
+    ros::Publisher person_keypoint_pub = nh.advertise<golem_campose::FramePoses>("person_keypoints", 1000);
 
-    cv::VideoCapture cap;
-
-    if(!cap.open(0)) {
-        ROS_INFO_STREAM("There was an error loading the videocapture...");
-        return -1;
-    }
+    opWrapper.disableMultiThreading();
+    opWrapper.start();
 
     while(ros::ok()) {
-        ROS_INFO_STREAM("LOOP");
-        latestImageMutex.lock();
-        // TODO: Find a better solution. Thanks to http://answers.opencv.org/question/29957/highguivideocapture-buffer-introducing-lag/?answer=31513#post-id-31513
-        for(int i=0; i<7; i++) { cap >> latestImage; }   // Temporary fix to clearing cap's buffer
-        latestImageSet = true;
-        latestImageMutex.unlock();
+        long frame = 0;
+        std::shared_ptr<std::vector<op::Datum>> datumProcessed;
+        if (opWrapper.waitAndPop(datumProcessed)) {
+            if(datumProcessed == nullptr || datumProcessed->empty()) {
+                op::log("Nullptr or empty datumProcessed found.", op::Priority::High, __LINE__, __FUNCTION__, __FILE__);
+            } else {
+                const auto& poseKeypoints = datumProcessed->at(0).poseKeypoints;
+                // ROS MSG to send
+                golem_campose::FramePoses framePosesMsg;
+                framePosesMsg.frame = frame;
+                framePosesMsg.poses.resize(poseKeypoints.getSize(0));
 
-        cv::Mat output_image_copy;
-        bool display = false;
+                for (auto person = 0 ; person < poseKeypoints.getSize(0) ; person++) {
+                        framePosesMsg.poses[person].keypoints.resize(poseKeypoints.getSize(1));
+                    for (auto bodyPart = 0 ; bodyPart < poseKeypoints.getSize(1) ; bodyPart++) {
+                        framePosesMsg.poses[person].keypoints[bodyPart].x = poseKeypoints[{person, bodyPart, 0}];
+                        framePosesMsg.poses[person].keypoints[bodyPart].y = poseKeypoints[{person, bodyPart, 1}];
+                        framePosesMsg.poses[person].keypoints[bodyPart].confidence = poseKeypoints[{person, bodyPart, 2}];
+                    }
+                }
 
-        outputImageMutex.lock();
-        display = outputImageSet;
-        if(display)
-            output_image_copy = outputImage.clone();
-        outputImageMutex.unlock();
-
-        if(display)
-            frameDisplayer.displayFrame(output_image_copy, 1);
+                person_keypoint_pub.publish(framePosesMsg);
+            }
+        }
+        else
+            op::log("Processed datum could not be emplaced.", op::Priority::High, __LINE__, __FUNCTION__, __FILE__);
 
         r.sleep();
         ros::spinOnce();
+        frame++;
     }
 }
