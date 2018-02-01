@@ -3,27 +3,8 @@
 #include <ros/ros.h>
 #include <mutex>
 
-std::mutex buffer_mutex;
-cv::Mat buffer;
-long frame_num = 0;
-
-void frame_recv(fc2::Image* pImage, const void* pCallbackData) {
-    fc2::Image rgbImage;
-
-    pImage->Convert( FlyCapture2::PIXEL_FORMAT_BGR, &rgbImage );
-    unsigned int rowBytes = (double)rgbImage.GetReceivedDataSize()/(double)rgbImage.GetRows();       
-
-    buffer_mutex.lock();
-    buffer = cv::Mat(rgbImage.GetRows(), rgbImage.GetCols(), CV_8UC3, rgbImage.GetData(),rowBytes);
-
-    frame_num++;
-    buffer_mutex.unlock();
-
-    ROS_INFO("FRAME RECIEVED. OF SIZE: (%d, %d)", buffer.cols, buffer.rows);
-}
-
 FlycaptureProducer::FlycaptureProducer()
-    : op::Producer(op::ProducerType::Webcam) {
+    : op::Producer(op::ProducerType::Webcam), res(0, 0) {
     fc2::Error error;
 
     // Initialize camera
@@ -37,15 +18,10 @@ FlycaptureProducer::FlycaptureProducer()
 
     ROS_INFO("%s %s %u", this->camInfo.vendorName, this->camInfo.modelName, this->camInfo.serialNumber);
     this->is_connected = this->cam.IsConnected();
-
-    this->cam.StartCapture(frame_recv);
 }
 
 std::string FlycaptureProducer::getFrameName() {
-    buffer_mutex.lock();
-    int frame_num_cpy = frame_num;
-    buffer_mutex.unlock();
-    return std::string("#") + std::to_string(frame_num_cpy);
+    return std::string("#") + std::to_string(this->frame_num);
 }
 
 bool FlycaptureProducer::isOpened() const {
@@ -55,22 +31,20 @@ bool FlycaptureProducer::isOpened() const {
 double FlycaptureProducer::get(const int capProperty) {
     if (capProperty == CV_CAP_PROP_FRAME_WIDTH)
     {
-        return buffer.cols;
-        //if (get(ProducerProperty::Rotation) == 0. || get(ProducerProperty::Rotation) == 180.)
-        //    return mResolution.x;
-        //else
-        //    return mResolution.y;
+        if (get(op::ProducerProperty::Rotation) == 0. || get(op::ProducerProperty::Rotation) == 180.)
+            return this->res.x;
+        else
+            return this->res.y;
     }
     else if (capProperty == CV_CAP_PROP_FRAME_HEIGHT)
     {
-        return buffer.rows;
-        //if (get(ProducerProperty::Rotation) == 0. || get(ProducerProperty::Rotation) == 180.)
-        //    return mResolution.y;
-        //else
-        //    return mResolution.x;
+        if (get(op::ProducerProperty::Rotation) == 0. || get(op::ProducerProperty::Rotation) == 180.)
+            return this->res.y;
+        else
+            return this->res.x;
     }
     else if (capProperty == CV_CAP_PROP_POS_FRAMES)
-        return (double)frame_num;
+        return (double)this->frame_num;
     //else if (capProperty == CV_CAP_PROP_FRAME_COUNT)
     //    return (double)mFilePaths.size();
     else if (capProperty == CV_CAP_PROP_FPS)
@@ -104,15 +78,27 @@ void FlycaptureProducer::set(const op::ProducerProperty property, const double v
 }
 
 cv::Mat FlycaptureProducer::getRawFrame() {
-    this->is_connected = cam.IsConnected();
+    this->is_connected = this->cam.IsConnected();
+    this->frame_num++;
 
-    buffer_mutex.lock();
-    cv::Mat my_frame = buffer.clone();
-    buffer_mutex.unlock();
+    fc2::Image rawImage, rgbImage;
 
-    ROS_INFO("Returning frame of size: (%d, %d)", my_frame.cols, my_frame.rows);
+    fc2::Error error = this->cam.RetrieveBuffer(&rawImage);
+    if (error != fc2::PGRERROR_OK) {
+            ROS_WARN("Capture error");
+            return cv::Mat();
+    }
+
+    rawImage.Convert(FlyCapture2::PIXEL_FORMAT_BGR, &rgbImage);
+    unsigned int rowBytes = (double)rgbImage.GetReceivedDataSize()/(double)rgbImage.GetRows();       
+
+    cv::Mat buffer = cv::Mat(rgbImage.GetRows(), rgbImage.GetCols(), CV_8UC3, rgbImage.GetData(),rowBytes);
+    res.x = buffer.cols;
+    res.y = buffer.rows;
+
+    ROS_INFO("Returning frame of size: (%d, %d)", buffer.cols, buffer.rows);
     
-    return my_frame;
+    return buffer;
 }
 
 void FlycaptureProducer::release() {

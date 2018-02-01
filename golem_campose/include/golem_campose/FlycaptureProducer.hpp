@@ -27,6 +27,8 @@ private:
     fc2::Camera cam;
     fc2::CameraInfo camInfo;
     bool is_connected;
+    long frame_num;
+    op::Point<int> res;
 
     DELETE_COPY(FlycaptureProducer);
 };
