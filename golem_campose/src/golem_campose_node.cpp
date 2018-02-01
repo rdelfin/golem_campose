@@ -21,7 +21,7 @@ DEFINE_int32(logging_level,             3,              "The logging level. Inte
 // Producer
 DEFINE_string(image_path,               "examples/media/COCO_val2014_000000000192.jpg",     "Process the desired image.");
 // OpenPose
-DEFINE_string(model_pose,               "MPI_4_layers", "Model to be used. E.g. `COCO` (18 keypoints), `MPI` (15 keypoints, ~10% faster), "
+DEFINE_string(model_pose,               "COCO",         "Model to be used. E.g. `COCO` (18 keypoints), `MPI` (15 keypoints, ~10% faster), "
                                                         "`MPI_4_layers` (15 keypoints, even faster but less accurate).");
 DEFINE_string(model_folder,             "/home/golem/Documents/openpose/models/",      "Folder path (absolute or relative) where the models (pose, face, ...) are located.");
 // Originally was -1x368
@@ -127,6 +127,7 @@ int main(int argc, char* argv[]) {
                 op::log("Nullptr or empty datumProcessed found.", op::Priority::High, __LINE__, __FUNCTION__, __FILE__);
             } else {
                 const auto& poseKeypoints = datumProcessed->at(0).poseKeypoints;
+                ROS_INFO("Keypoints sent: (%d, %d)", poseKeypoints.getSize(0), poseKeypoints.getSize(1));
                 // ROS MSG to send
                 golem_campose::FramePoses framePosesMsg;
                 framePosesMsg.frame = frame;
@@ -142,6 +143,9 @@ int main(int argc, char* argv[]) {
                 }
 
                 person_keypoint_pub.publish(framePosesMsg);
+
+                cv::imshow("User worker GUI", datumProcessed->at(0).cvOutputData);
+                cv::waitKey(1);
             }
         }
         else
