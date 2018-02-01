@@ -3,6 +3,10 @@ project(golem_campose)
 
 set (CMAKE_CXX_STANDARD 11)
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
+message("CMAKE SOURCE DIR:  ${CMAKE_SOURCE_DIR}")
+message("CMAKE MODULE PATH: ${CMAKE_MODULE_PATH}")
+
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 
@@ -18,8 +22,8 @@ find_package(catkin REQUIRED COMPONENTS
 
 # Exports OpenPose_INCLUDE_DIRS, OpenPose_LIBS, OpenPose_FOUND, et. al.
 find_package(OpenPose REQUIRED)
-
 find_package(gflags REQUIRED)
+find_package(FlyCapture2 REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -128,6 +132,7 @@ include_directories(
 # include
   ${OpenPose_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
+  ${FlyCapture2_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -159,6 +164,7 @@ add_dependencies(openpose_collector ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin
 target_link_libraries(openpose_collector
   ${OpenPose_LIBS}
   ${catkin_LIBRARIES}
+  ${FlyCapture2_LIBRARIES}
   gflags
 )
 

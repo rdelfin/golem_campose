@@ -10,6 +10,10 @@
 
 #include <gflags/gflags.h>
 
+#include <flycapture/FlyCapture2.h>
+
+namespace fc2 = FlyCapture2;
+
 // Allow Google Flags in Ubuntu 14
 #ifndef GFLAGS_GFLAGS_H_
     namespace gflags = google;
@@ -60,6 +64,30 @@ op::PoseModel poseModel;
 
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
+
+    // Supress OpenPose logging
+    //op::ConfigureLog::setPriorityThreshold(op::Priority::High);
+    //op::Profiler::setDefaultX(1000);
+
+    fc2::Error error;
+    fc2::Camera cam;
+    fc2::CameraInfo camInfo;
+
+    // Initialize camera
+    error = cam.Connect();
+    if(error != fc2::PGRERROR_OK) {
+        ROS_ERROR("Failed to connect to camera");
+        return -1;
+    }
+
+    error = cam.GetCameraInfo( &camInfo );
+    if ( error != fc2::PGRERROR_OK )
+    {
+        ROS_ERROR("Failed to get camera info from camera");
+        return -1;
+    }
+
+    ROS_INFO("%s %s %u", camInfo.vendorName, camInfo.modelName, camInfo.serialNumber);
 
     // outputSize
     outputSize = op::flagsToPoint(FLAGS_output_resolution, "-1x-1");
