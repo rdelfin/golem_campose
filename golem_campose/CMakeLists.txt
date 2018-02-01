@@ -116,7 +116,7 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES golem_campose
   CATKIN_DEPENDS roscpp rospy message_runtime std_msgs
 #  DEPENDS system_lib
@@ -129,7 +129,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${OpenPose_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
   ${FlyCapture2_INCLUDE_DIRS}
@@ -148,7 +148,8 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(openpose_collector src/openpose_collector_node.cpp)
+add_executable(openpose_collector src/openpose_collector_node.cpp
+                                  src/FlycaptureProducer.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

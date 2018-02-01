@@ -4,6 +4,8 @@
 #include <golem_campose/PersonPose.h>
 #include <golem_campose/Keypoint.h>
 
+#include <golem_campose/FlycaptureProducer.hpp>
+
 #include <openpose/headers.hpp>
 
 #include <opencv2/opencv.hpp>
@@ -66,28 +68,8 @@ int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
     // Supress OpenPose logging
-    //op::ConfigureLog::setPriorityThreshold(op::Priority::High);
-    //op::Profiler::setDefaultX(1000);
-
-    fc2::Error error;
-    fc2::Camera cam;
-    fc2::CameraInfo camInfo;
-
-    // Initialize camera
-    error = cam.Connect();
-    if(error != fc2::PGRERROR_OK) {
-        ROS_ERROR("Failed to connect to camera");
-        return -1;
-    }
-
-    error = cam.GetCameraInfo( &camInfo );
-    if ( error != fc2::PGRERROR_OK )
-    {
-        ROS_ERROR("Failed to get camera info from camera");
-        return -1;
-    }
-
-    ROS_INFO("%s %s %u", camInfo.vendorName, camInfo.modelName, camInfo.serialNumber);
+    op::ConfigureLog::setPriorityThreshold(op::Priority::High);
+    op::Profiler::setDefaultX(1000);
 
     // outputSize
     outputSize = op::flagsToPoint(FLAGS_output_resolution, "-1x-1");
@@ -106,7 +88,7 @@ int main(int argc, char* argv[]) {
     const auto heatMapTypes = op::flagsToHeatMaps(false, false, false);
     const auto heatMapScale = op::flagsToHeatMapScaleMode(2);
 
-    const auto producerSharedPtr = op::flagsToProducer("", "", "", -1, "1280x720", 30.0);
+    const auto producerSharedPtr = std::make_shared<FlycaptureProducer>();
 
     op::Wrapper<std::vector<op::Datum>> opWrapper{op::ThreadManagerMode::AsynchronousOut};
 
