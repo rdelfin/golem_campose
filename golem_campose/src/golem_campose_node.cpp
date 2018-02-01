@@ -104,7 +104,7 @@ int main(int argc, char* argv[]) {
     const bool fullScreen = false;
     const op::WrapperStructOutput wrapperStructOutput{displayGui, guiVerbose, fullScreen, "",
                                                       op::stringToDataFormat("yml"),
-                                                      false, "", "", "png", "", "", "png"};
+                                                      "", "", "", "png", "", "", "png"};
 
     opWrapper.configure(wrapperStructPose, wrapperStructFace, wrapperStructHand, wrapperStructInput,
                         wrapperStructOutput);
