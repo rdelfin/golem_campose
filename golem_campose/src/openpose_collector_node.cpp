@@ -15,11 +15,6 @@
     namespace gflags = google;
 #endif
 
-DEFINE_int32(logging_level,             3,              "The logging level. Integer in the range [0, 255]. 0 will output any log() message, while"
-                                                        " 255 will not output any. Current OpenPose library messages are in the range 0-4: 1 for"
-                                                        " low priority messages and 4 for important ones.");
-// Producer
-DEFINE_string(image_path,               "examples/media/COCO_val2014_000000000192.jpg",     "Process the desired image.");
 // OpenPose
 DEFINE_string(model_pose,               "COCO",         "Model to be used. E.g. `COCO` (18 keypoints), `MPI` (15 keypoints, ~10% faster), "
                                                         "`MPI_4_layers` (15 keypoints, even faster but less accurate).");
