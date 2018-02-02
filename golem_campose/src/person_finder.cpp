@@ -18,9 +18,8 @@ void keypointCallback(const campose_msgs::FramePoses::ConstPtr& msg) {
     
     people_angles.header = msg->header;
 
-    for(const campose_msgs::PersonPose& person_pose : msg->poses) {
+    for(const campose_msgs::PersonPose& person_pose : msg->poses)
         people_angles.angles.push_back(pose_to_angle(person_pose));
-    }
 
     person_publisher.publish(people_angles);
 }
