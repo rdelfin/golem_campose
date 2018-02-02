@@ -172,7 +172,9 @@ int main(int argc, char* argv[]) {
                 ROS_INFO("Keypoints sent: (%d, %d)", poseKeypoints.getSize(0), poseKeypoints.getSize(1));
                 // ROS MSG to send
                 campose_msgs::FramePoses framePosesMsg;
-                framePosesMsg.frame = frame;
+                framePosesMsg.header.seq = frame;
+                framePosesMsg.header.frame_id = std::string("#") + std::to_string(frame);
+                framePosesMsg.header.stamp = ros::Time::now();
                 framePosesMsg.poses.resize(poseKeypoints.getSize(0));
 
                 for (auto person = 0; person < poseKeypoints.getSize(0); person++) {

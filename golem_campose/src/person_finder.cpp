@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 
 #include <campose_msgs/FramePoses.h>
+#include <campose_msgs/PersonAngles.h>
 
 #include <std_msgs/Float64MultiArray.h>
 
@@ -13,10 +14,12 @@ ros::Publisher person_publisher;
 double pose_to_angle(const campose_msgs::PersonPose& person_pose);
 
 void keypointCallback(const campose_msgs::FramePoses::ConstPtr& msg) {
-    std_msgs::Float64MultiArray people_angles;
+    campose_msgs::PersonAngles people_angles;
+    
+    people_angles.header = msg->header;
 
     for(const campose_msgs::PersonPose& person_pose : msg->poses) {
-        people_angles.data.push_back(pose_to_angle(person_pose));
+        people_angles.angles.push_back(pose_to_angle(person_pose));
     }
 
     person_publisher.publish(people_angles);
@@ -26,7 +29,7 @@ int main(int argc, char* argv[]) {
     ros::init(argc, argv, "person_finder");
     ros::NodeHandle nh;
 
-    person_publisher = nh.advertise<std_msgs::Float64MultiArray>("people_angles", 1000);
+    person_publisher = nh.advertise<campose_msgs::PersonAngles>("people_angles", 1000);
     ros::Subscriber keypoint_subscriber = nh.subscribe("person_keypoints", 1000, keypointCallback);
 
     ROS_INFO("Converting keypoints to angles...");
