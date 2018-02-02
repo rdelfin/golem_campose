@@ -157,6 +157,7 @@ int main(int argc, char* argv[]) {
 
                 cv::imshow("User worker GUI", datumProcessed->at(0).cvOutputData);
                 cv::waitKey(1);
+                frame++;
             }
         }
         else
@@ -164,6 +165,5 @@ int main(int argc, char* argv[]) {
 
         r.sleep();
         ros::spinOnce();
-        frame++;
     }
 }
