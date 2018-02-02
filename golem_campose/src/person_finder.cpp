@@ -13,7 +13,7 @@ void keypointCallback(const golem_campose::FramePoses::ConstPtr& msg) {
         ROS_INFO("Person 0 info:");
         golem_campose::PersonPose pose = msg->poses[0];
 
-        for(golem_campose::Keypoint kp : pose.keypoints) {
+        for(golem_campose::Keypoint kp : pose.keypoint_data) {
             ROS_INFO("\t%.3f %.3f error: %.3f", kp.x, kp.y, kp.confidence);
         }
     }

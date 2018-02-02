@@ -1,1 +1,20 @@
-Keypoint[] keypoints
+golem_campose/Keypoint nose
+golem_campose/Keypoint neck
+golem_campose/Keypoint right_shoulder
+golem_campose/Keypoint right_elbow
+golem_campose/Keypoint right_wrist
+golem_campose/Keypoint left_shoulder
+golem_campose/Keypoint left_elbow
+golem_campose/Keypoint left_wrist
+golem_campose/Keypoint right_hip
+golem_campose/Keypoint right_knee
+golem_campose/Keypoint right_ankle
+golem_campose/Keypoint left_hip
+golem_campose/Keypoint left_knee
+golem_campose/Keypoint left_ankle
+golem_campose/Keypoint right_eye
+golem_campose/Keypoint left_eye
+golem_campose/Keypoint right_ear
+golem_campose/Keypoint left_ear
+
+golem_campose/Keypoint[] keypoint_data

@@ -64,6 +64,37 @@ op::Point<int> outputSize;
 op::Point<int> netInputSize;
 op::PoseModel poseModel;
 
+void fill_pose_with_keypoints(golem_campose::PersonPose& pose, const op::Array<float>& keypoints, int person) {
+    pose.keypoint_data.resize(keypoints.getSize(1));
+    for (auto bodyPart = 0; bodyPart < keypoints.getSize(1); bodyPart++) {
+        pose.keypoint_data[bodyPart].x          = keypoints[{person, bodyPart, 0}];
+        pose.keypoint_data[bodyPart].y          = keypoints[{person, bodyPart, 1}];
+        pose.keypoint_data[bodyPart].confidence = keypoints[{person, bodyPart, 2}];
+    }
+
+    if(pose.keypoint_data.size() < 18)
+        return;
+
+    pose.nose           = pose.keypoint_data[0];
+    pose.neck           = pose.keypoint_data[1];
+    pose.right_shoulder = pose.keypoint_data[2];
+    pose.right_elbow    = pose.keypoint_data[3];
+    pose.right_wrist    = pose.keypoint_data[4];
+    pose.left_shoulder  = pose.keypoint_data[5];
+    pose.left_elbow     = pose.keypoint_data[6];
+    pose.left_wrist     = pose.keypoint_data[7];
+    pose.right_hip      = pose.keypoint_data[8];
+    pose.right_knee     = pose.keypoint_data[9];
+    pose.right_ankle    = pose.keypoint_data[10];
+    pose.left_hip       = pose.keypoint_data[11];
+    pose.left_knee      = pose.keypoint_data[12];
+    pose.left_ankle     = pose.keypoint_data[13];
+    pose.right_eye      = pose.keypoint_data[14];
+    pose.left_eye       = pose.keypoint_data[15];
+    pose.right_ear      = pose.keypoint_data[16];
+    pose.left_ear       = pose.keypoint_data[17];
+}
+
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
@@ -144,13 +175,8 @@ int main(int argc, char* argv[]) {
                 framePosesMsg.frame = frame;
                 framePosesMsg.poses.resize(poseKeypoints.getSize(0));
 
-                for (auto person = 0 ; person < poseKeypoints.getSize(0) ; person++) {
-                        framePosesMsg.poses[person].keypoints.resize(poseKeypoints.getSize(1));
-                    for (auto bodyPart = 0 ; bodyPart < poseKeypoints.getSize(1) ; bodyPart++) {
-                        framePosesMsg.poses[person].keypoints[bodyPart].x = poseKeypoints[{person, bodyPart, 0}];
-                        framePosesMsg.poses[person].keypoints[bodyPart].y = poseKeypoints[{person, bodyPart, 1}];
-                        framePosesMsg.poses[person].keypoints[bodyPart].confidence = poseKeypoints[{person, bodyPart, 2}];
-                    }
+                for (auto person = 0; person < poseKeypoints.getSize(0); person++) {
+                    fill_pose_with_keypoints(framePosesMsg.poses[person], poseKeypoints, person);
                 }
 
                 person_keypoint_pub.publish(framePosesMsg);

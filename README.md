@@ -21,6 +21,5 @@ The keypoints in returned by the openpose_collector node are in a list with the 
 15. Left eye
 16. Right ear
 17. Left ear
-18. Background
 
 The person_finder node grabs keypoints #0 and #1 and does a weighted average to get the x coordinate of the person and publish that.
