@@ -1,8 +1,8 @@
 #include <ros/ros.h>
 
-#include <golem_campose/FramePoses.h>
-#include <golem_campose/PersonPose.h>
-#include <golem_campose/Keypoint.h>
+#include <campose_msgs/FramePoses.h>
+#include <campose_msgs/PersonPose.h>
+#include <campose_msgs/Keypoint.h>
 
 #include <golem_campose/FlycaptureProducer.hpp>
 
@@ -64,7 +64,7 @@ op::Point<int> outputSize;
 op::Point<int> netInputSize;
 op::PoseModel poseModel;
 
-void fill_pose_with_keypoints(golem_campose::PersonPose& pose, const op::Array<float>& keypoints, int person) {
+void fill_pose_with_keypoints(campose_msgs::PersonPose& pose, const op::Array<float>& keypoints, int person) {
     pose.keypoint_data.resize(keypoints.getSize(1));
     for (auto bodyPart = 0; bodyPart < keypoints.getSize(1); bodyPart++) {
         pose.keypoint_data[bodyPart].x          = keypoints[{person, bodyPart, 0}];
@@ -156,7 +156,7 @@ int main(int argc, char* argv[]) {
     ros::NodeHandle nh;
     ros::Rate r(30);
 
-    ros::Publisher person_keypoint_pub = nh.advertise<golem_campose::FramePoses>("person_keypoints", 1000);
+    ros::Publisher person_keypoint_pub = nh.advertise<campose_msgs::FramePoses>("person_keypoints", 1000);
 
     opWrapper.disableMultiThreading();
     opWrapper.start();
@@ -171,7 +171,7 @@ int main(int argc, char* argv[]) {
                 const auto& poseKeypoints = datumProcessed->at(0).poseKeypoints;
                 ROS_INFO("Keypoints sent: (%d, %d)", poseKeypoints.getSize(0), poseKeypoints.getSize(1));
                 // ROS MSG to send
-                golem_campose::FramePoses framePosesMsg;
+                campose_msgs::FramePoses framePosesMsg;
                 framePosesMsg.frame = frame;
                 framePosesMsg.poses.resize(poseKeypoints.getSize(0));
 

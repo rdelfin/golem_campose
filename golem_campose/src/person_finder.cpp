@@ -1,6 +1,6 @@
 #include <ros/ros.h>
 
-#include <golem_campose/FramePoses.h>
+#include <campose_msgs/FramePoses.h>
 
 #include <std_msgs/Float64MultiArray.h>
 
@@ -10,12 +10,12 @@
 
 ros::Publisher person_publisher;
 
-double pose_to_angle(const golem_campose::PersonPose& person_pose);
+double pose_to_angle(const campose_msgs::PersonPose& person_pose);
 
-void keypointCallback(const golem_campose::FramePoses::ConstPtr& msg) {
+void keypointCallback(const campose_msgs::FramePoses::ConstPtr& msg) {
     std_msgs::Float64MultiArray people_angles;
 
-    for(const golem_campose::PersonPose& person_pose : msg->poses) {
+    for(const campose_msgs::PersonPose& person_pose : msg->poses) {
         people_angles.data.push_back(pose_to_angle(person_pose));
     }
 
@@ -34,11 +34,11 @@ int main(int argc, char* argv[]) {
     ros::spin();
 }
 
-double pose_to_angle(const golem_campose::PersonPose& person_pose) {
+double pose_to_angle(const campose_msgs::PersonPose& person_pose) {
     double pos_x;
     if(person_pose.nose.confidence > CONFIDENCE_THRESHOLD ||
        person_pose.neck.confidence > CONFIDENCE_THRESHOLD) {
-        golem_campose::Keypoint neck = person_pose.neck, nose = person_pose.nose;
+        campose_msgs::Keypoint neck = person_pose.neck, nose = person_pose.nose;
         // Set pos_x as a weighted average of the neck and nose x weighted on the confidence
         pos_x = (neck.confidence*neck.x + nose.confidence*nose.x) / (neck.confidence + nose.confidence);
     } else {
@@ -46,7 +46,7 @@ double pose_to_angle(const golem_campose::PersonPose& person_pose) {
         // with confidence > CONFIDENCE_THRESHOLD and return the center.
         bool minmax_set = false;
         double xmin = 0, xmax = 0;
-        for(golem_campose::Keypoint kp : person_pose.keypoint_data) {
+        for(campose_msgs::Keypoint kp : person_pose.keypoint_data) {
             if(kp.confidence > CONFIDENCE_THRESHOLD) {
                 if(!minmax_set) {
                     xmin = kp.x;

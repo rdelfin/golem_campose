@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 2.8.3)
 project(golem_campose)
 
-set (CMAKE_CXX_STANDARD 11)
+add_compile_options(-std=c++11)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 message("CMAKE SOURCE DIR:  ${CMAKE_SOURCE_DIR}")
@@ -16,8 +16,7 @@ message("CMAKE MODULE PATH: ${CMAKE_MODULE_PATH}")
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
-  message_generation
-  std_msgs
+  campose_msgs
 )
 
 # Exports OpenPose_INCLUDE_DIRS, OpenPose_LIBS, OpenPose_FOUND, et. al.
@@ -59,12 +58,11 @@ find_package(FlyCapture2 REQUIRED)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  Keypoint.msg
-  PersonPose.msg
-  FramePoses.msg
-)
+# add_message_files(
+#   FILES
+#   Message1.msg
+#   Message2.msg
+# )
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -81,11 +79,10 @@ add_message_files(
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  golem_campose
-)
+# generate_messages(
+#   DEPENDENCIES
+#   campose_msgs
+# )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -119,7 +116,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES golem_campose
-  CATKIN_DEPENDS roscpp rospy message_runtime std_msgs
+  CATKIN_DEPENDS roscpp rospy campose_msgs
 #  DEPENDS system_lib
 )
 
