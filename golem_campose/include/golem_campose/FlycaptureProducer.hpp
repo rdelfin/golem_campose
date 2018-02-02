@@ -5,6 +5,12 @@
 
 namespace fc2 = FlyCapture2;
 
+class camera_not_found_exception : public std::runtime_error {
+public:
+    camera_not_found_exception()
+        : runtime_error("Failed to connect to the camera."){ }
+};
+
 class FlycaptureProducer : public op::Producer {
 public:
     FlycaptureProducer();

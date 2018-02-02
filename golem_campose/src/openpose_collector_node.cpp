@@ -88,7 +88,13 @@ int main(int argc, char* argv[]) {
     const auto heatMapTypes = op::flagsToHeatMaps(false, false, false);
     const auto heatMapScale = op::flagsToHeatMapScaleMode(2);
 
-    const auto producerSharedPtr = std::make_shared<FlycaptureProducer>();
+    std::shared_ptr<FlycaptureProducer> producerSharedPtr;
+    try {
+        producerSharedPtr = std::make_shared<FlycaptureProducer>();
+    } catch(camera_not_found_exception e) {
+        ROS_ERROR("%s", e.what());
+        exit(-1);
+    }
 
     op::Wrapper<std::vector<op::Datum>> opWrapper{op::ThreadManagerMode::AsynchronousOut};
 
@@ -127,7 +133,7 @@ int main(int argc, char* argv[]) {
     while(ros::ok()) {
         long frame = 0;
         std::shared_ptr<std::vector<op::Datum>> datumProcessed;
-        if (opWrapper.waitAndPop(datumProcessed)) {
+        if(opWrapper.waitAndPop(datumProcessed)) {
             if(datumProcessed == nullptr || datumProcessed->empty()) {
                 op::log("Nullptr or empty datumProcessed found.", op::Priority::High, __LINE__, __FUNCTION__, __FILE__);
             } else {

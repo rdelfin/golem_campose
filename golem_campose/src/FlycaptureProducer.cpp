@@ -29,11 +29,11 @@ FlycaptureProducer::FlycaptureProducer()
     // Initialize camera
     error = this->cam.Connect();
     if(error != fc2::PGRERROR_OK)
-        ROS_ERROR("Failed to connect to camera");
+        throw camera_not_found_exception();
 
     error = this->cam.GetCameraInfo( &this->camInfo );
     if ( error != fc2::PGRERROR_OK )
-        ROS_ERROR("Failed to get camera info from camera");
+        throw camera_not_found_exception();
 
     ROS_INFO("%s %s %u", this->camInfo.vendorName, this->camInfo.modelName, this->camInfo.serialNumber);
     this->is_connected = this->cam.IsConnected();
@@ -71,13 +71,13 @@ double FlycaptureProducer::get(const int capProperty) {
     }
     else if (capProperty == CV_CAP_PROP_POS_FRAMES)
         return (double)frame_num;
-    //else if (capProperty == CV_CAP_PROP_FRAME_COUNT)
-    //    return (double)mFilePaths.size();
+    else if (capProperty == CV_CAP_PROP_FRAME_COUNT)
+        return -1;
     else if (capProperty == CV_CAP_PROP_FPS)
         return -1.;
     else
     {
-        op::log("Unknown property", op::Priority::Max, __LINE__, __FUNCTION__, __FILE__);
+        ROS_WARN("Unknown property (%d) on %s:%s:%d", capProperty, __FILE__, __FUNCTION__, __LINE__);
         return -1.;
     }
 }
@@ -90,9 +90,9 @@ void FlycaptureProducer::set(const int capProperty, const double value) {
     //if (capProperty == CV_CAP_PROP_POS_FRAMES)
     //    mFrameNameCounter = fastTruncate((long long)value, 0ll, (long long)mFilePaths.size()-1);
     if (capProperty == CV_CAP_PROP_FRAME_COUNT || capProperty == CV_CAP_PROP_FPS)
-        op::log("This property is read-only.", op::Priority::Max, __LINE__, __FUNCTION__, __FILE__);
+        ROS_WARN("The property (%d) is read only on %s:%s:%d", capProperty, __FILE__, __FUNCTION__, __LINE__);
     else
-        op::log("Unknown property", op::Priority::Max, __LINE__, __FUNCTION__, __FILE__);
+        ROS_WARN("Unknown property (%d) on %s:%s:%d", capProperty, __FILE__, __FUNCTION__, __LINE__);
 }
 
 double FlycaptureProducer::get(const op::ProducerProperty property) {
