@@ -60,6 +60,8 @@ DEFINE_int32(render_pose,               -1,             "Set to 0 for no renderi
                                                         " both `outputData` and `cvOutputData` with the original image and desired body part to be"
                                                         " shown (i.e. keypoints, heat maps or PAFs).");
 
+DEFINE_int32(img_height,                700,            "The hight in pixels of the image rendered.");
+
 op::Point<int> outputSize;
 op::Point<int> netInputSize;
 op::PoseModel poseModel;
@@ -183,7 +185,11 @@ int main(int argc, char* argv[]) {
 
                 person_keypoint_pub.publish(framePosesMsg);
 
-                cv::imshow("User worker GUI", datumProcessed->at(0).cvOutputData);
+                cv::Mat scaled_img;
+                cv::Mat raw_img = datumProcessed->at(0).cvOutputData;
+                cv::Size scale_factor(raw_img.cols * FLAGS_img_height / raw_img.rows, FLAGS_img_height);
+                cv::resize(raw_img, scaled_img, scale_factor);
+                cv::imshow("User worker GUI", scaled_img);
                 cv::waitKey(1);
                 frame++;
             }
