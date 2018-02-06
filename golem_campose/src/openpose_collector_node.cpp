@@ -11,6 +11,7 @@
 #include <opencv2/opencv.hpp>
 
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 
 #include <flycapture/FlyCapture2.h>
 
@@ -101,7 +102,9 @@ int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
     // Supress OpenPose logging
-    op::ConfigureLog::setPriorityThreshold(op::Priority::High);
+    FLAGS_logtostderr = false;
+    google::InitGoogleLogging(argv[0]);
+    op::ConfigureLog::setPriorityThreshold(op::Priority::NoOutput);
     op::Profiler::setDefaultX(1000);
 
     // outputSize
@@ -168,7 +171,7 @@ int main(int argc, char* argv[]) {
         std::shared_ptr<std::vector<op::Datum>> datumProcessed;
         if(opWrapper.waitAndPop(datumProcessed)) {
             if(datumProcessed == nullptr || datumProcessed->empty()) {
-                op::log("Nullptr or empty datumProcessed found.", op::Priority::High, __LINE__, __FUNCTION__, __FILE__);
+                ROS_WARN("Nullptr or empty datumProcessed found. At: %s:%d:%s", __FILE__, __LINE__, __FUNCTION__);
             } else {
                 const auto& poseKeypoints = datumProcessed->at(0).poseKeypoints;
                 ROS_INFO("Keypoints sent: (%d, %d)", poseKeypoints.getSize(0), poseKeypoints.getSize(1));
@@ -195,7 +198,7 @@ int main(int argc, char* argv[]) {
             }
         }
         else
-            op::log("Processed datum could not be emplaced.", op::Priority::High, __LINE__, __FUNCTION__, __FILE__);
+            ROS_WARN("Processed datum could not be emplaced. At: %s:%d:%s", __FILE__, __LINE__, __FUNCTION__);
 
         r.sleep();
         ros::spinOnce();
