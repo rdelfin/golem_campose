@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="golem_campose" name="openpose_collector" type="openpose_collector" />
+    <node pkg="golem_campose" name="person_finder" type="person_finder" />
+</launch>
