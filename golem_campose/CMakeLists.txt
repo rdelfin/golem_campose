@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   campose_msgs
+  cv_bridge
 )
 
 # Exports OpenPose_INCLUDE_DIRS, OpenPose_LIBS, OpenPose_FOUND, et. al.
@@ -45,4 +46,12 @@ add_executable(person_finder src/person_finder.cpp)
 add_dependencies(person_finder ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(person_finder
   ${catkin_LIBRARIES}
+)
+)
+
+add_executable(flycap_publisher src/flycap_publisher_node.cpp)
+add_dependencies(flycap_publisher ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(flycap_publisher
+  ${catkin_LIBRARIES}
+  ${FlyCapture2_LIBRARIES}
 )
