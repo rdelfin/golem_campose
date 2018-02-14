@@ -47,7 +47,7 @@ add_dependencies(person_finder ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPO
 target_link_libraries(person_finder
   ${catkin_LIBRARIES}
 )
-)
+
 
 add_executable(flycap_publisher src/flycap_publisher_node.cpp)
 add_dependencies(flycap_publisher ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
