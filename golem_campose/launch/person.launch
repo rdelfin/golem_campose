@@ -1,4 +1,6 @@
 <launch>
     <node pkg="golem_campose" name="openpose_collector" type="openpose_collector" />
     <node pkg="golem_campose" name="person_finder" type="person_finder" />
+    <node pkg="golem_campose" name="flycap_publisher" type="flycap_publisher" />
+   <arg name="camera_topic" value="/webcam/image_raw" />
 </launch>
