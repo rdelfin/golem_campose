@@ -33,7 +33,8 @@ include_directories(
 )
 
 add_executable(openpose_collector src/openpose_collector_node.cpp
-                                  src/FlycaptureProducer.cpp)
+                                  src/FlycaptureProducer.cpp
+                                  src/RostopicProducer.cpp)
 add_dependencies(openpose_collector ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(openpose_collector
   ${OpenPose_LIBS}
