@@ -3,9 +3,9 @@ project(golem_campose)
 
 add_compile_options(-std=c++11)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-message("CMAKE SOURCE DIR:  ${CMAKE_SOURCE_DIR}")
-message("CMAKE MODULE PATH: ${CMAKE_MODULE_PATH}")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake/")
+message("CMAKE CURRENT LIST DIR:  ${CMAKE_CURRENT_LIST_DIR}")
+message("CMAKE MODULE PATH:       ${CMAKE_MODULE_PATH}")
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 # Exports OpenPose_INCLUDE_DIRS, OpenPose_LIBS, OpenPose_FOUND, et. al.
+find_package(OpenCV REQUIRED)
 find_package(OpenPose REQUIRED)
 find_package(gflags REQUIRED)
 find_package(FlyCapture2 REQUIRED)
@@ -30,15 +31,18 @@ include_directories(
   ${OpenPose_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
   ${FlyCapture2_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 add_executable(openpose_collector src/openpose_collector_node.cpp
-                                  src/FlycaptureProducer.cpp)
+                                  src/FlycaptureProducer.cpp
+                                  src/RostopicProducer.cpp)
 add_dependencies(openpose_collector ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(openpose_collector
   ${OpenPose_LIBS}
   ${catkin_LIBRARIES}
   ${FlyCapture2_LIBRARIES}
+  ${OpenCV_LIBS}
   gflags
 )
 
