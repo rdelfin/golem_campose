@@ -103,8 +103,8 @@ int main(int argc, char* argv[]) {
     ros::NodeHandle nh;
     ros::Rate r(30);
 
-    std::string topic_name;
-    nh.param<std::string>("topic_name", topic_name, "/flycap_cam/image");
+    std::string camera_topic;
+    nh.param<std::string>("camera_topic", camera_topic, "/flycap_cam/image");
 
     // Supress OpenPose logging
     FLAGS_logtostderr = false;
@@ -131,7 +131,7 @@ int main(int argc, char* argv[]) {
 
     std::shared_ptr<RostopicProducer> producerSharedPtr;
     try {
-        producerSharedPtr = std::make_shared<RostopicProducer>(topic_name, nh);
+        producerSharedPtr = std::make_shared<RostopicProducer>(camera_topic, nh);
     } catch(camera_not_found_exception e) {
         ROS_ERROR("%s", e.what());
         exit(-1);
