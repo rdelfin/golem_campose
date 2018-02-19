@@ -33,7 +33,10 @@ cv::Mat RostopicProducer::getRawFrame() {
 }
 
 std::string RostopicProducer::getFrameName() {
-    return std::string("#") + std::to_string(this->frame_count);
+    this->frame_mtx.lock();
+    int frame_count = this->frame_count;
+    this->frame_mtx.unlock();
+    return std::string("#") + std::to_string(frame_count);
 }
 
 bool RostopicProducer::isOpened() const {
