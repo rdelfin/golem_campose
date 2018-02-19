@@ -22,6 +22,8 @@ public:
     virtual void set(const op::ProducerProperty property, const double value);
     virtual void release();
 
+    std_msgs::Header get_header();
+
     virtual ~RostopicProducer();
 
 protected:
@@ -33,6 +35,8 @@ private:
     bool img_set;
     int frame_count;
     std::mutex frame_mtx;
+
+    std::Header fetched_header, latest_header;
 
     void topic_cb(const sensor_msgs::Image::ConstPtr& msg);
 

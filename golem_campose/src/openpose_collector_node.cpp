@@ -168,13 +168,12 @@ int main(int argc, char* argv[]) {
             if(datumProcessed == nullptr || datumProcessed->empty()) {
                 ROS_WARN("Nullptr or empty datumProcessed found. At: %s:%d:%s", __FILE__, __LINE__, __FUNCTION__);
             } else {
+                std_msgs::Header header = producerSharedPtr->get_header();
                 const auto& poseKeypoints = datumProcessed->at(0).poseKeypoints;
                 ROS_INFO("Keypoints sent: (%d, %d)", poseKeypoints.getSize(0), poseKeypoints.getSize(1));
                 // ROS MSG to send
                 campose_msgs::FramePoses framePosesMsg;
-                framePosesMsg.header.seq = frame;
-                framePosesMsg.header.frame_id = std::string("#") + std::to_string(frame);
-                framePosesMsg.header.stamp = ros::Time::now();
+                framePosesMsg.header = header;
                 framePosesMsg.poses.resize(poseKeypoints.getSize(0));
 
                 for (auto person = 0; person < poseKeypoints.getSize(0); person++) {

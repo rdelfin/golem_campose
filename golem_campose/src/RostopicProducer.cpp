@@ -18,6 +18,7 @@ void RostopicProducer::topic_cb(const sensor_msgs::Image::ConstPtr& msg) {
     }
 
     this->frame_mtx.lock();
+    this->latest_header = msg.header;
     this->latest = cv_ptr->image.clone();
     this->img_set = true;
     this->frame_count++;
@@ -27,6 +28,7 @@ void RostopicProducer::topic_cb(const sensor_msgs::Image::ConstPtr& msg) {
 cv::Mat RostopicProducer::getRawFrame() {
     this->frame_mtx.lock();
     cv::Mat result = this->latest.clone();
+    this->fetched_header = this->latest_header;
     this->frame_mtx.unlock();
 
     return this->latest;
@@ -37,6 +39,13 @@ std::string RostopicProducer::getFrameName() {
     int frame_count = this->frame_count;
     this->frame_mtx.unlock();
     return std::string("#") + std::to_string(frame_count);
+}
+
+std_msgs::Header get_header() {
+    this->frame_mtx.lock();
+    std_msgs::Header header = this->fetched_header;
+    this->frame_mtx.unlock();
+    return header;
 }
 
 bool RostopicProducer::isOpened() const {
