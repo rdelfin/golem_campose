@@ -1,10 +1,11 @@
+#include <string>
+
 #include <ros/ros.h>
 
 #include <campose_msgs/FramePoses.h>
 #include <campose_msgs/PersonPose.h>
 #include <campose_msgs/Keypoint.h>
-
-#include <golem_campose/FlycaptureProducer.hpp>
+#include <golem_campose/RostopicProducer.hpp>
 
 #include <openpose/headers.hpp>
 
@@ -12,10 +13,6 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-
-#include <flycapture/FlyCapture2.h>
-
-namespace fc2 = FlyCapture2;
 
 // Allow Google Flags in Ubuntu 14
 #ifndef GFLAGS_GFLAGS_H_
@@ -101,6 +98,14 @@ void fill_pose_with_keypoints(campose_msgs::PersonPose& pose, const op::Array<fl
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
+    // ROS initialization
+    ros::init(argc, argv, "golem_campose_node");
+    ros::NodeHandle nh;
+    ros::Rate r(30);
+
+    std::string topic_name;
+    nh.param<std::string>("topic_name", topic_name, "/flycap_cam/image");
+
     // Supress OpenPose logging
     FLAGS_logtostderr = false;
     google::InitGoogleLogging(argv[0]);
@@ -124,9 +129,9 @@ int main(int argc, char* argv[]) {
     const auto heatMapTypes = op::flagsToHeatMaps(false, false, false);
     const auto heatMapScale = op::flagsToHeatMapScaleMode(2);
 
-    std::shared_ptr<FlycaptureProducer> producerSharedPtr;
+    std::shared_ptr<RostopicProducer> producerSharedPtr;
     try {
-        producerSharedPtr = std::make_shared<FlycaptureProducer>();
+        producerSharedPtr = std::make_shared<RostopicProducer>(topic_name, nh);
     } catch(camera_not_found_exception e) {
         ROS_ERROR("%s", e.what());
         exit(-1);
@@ -155,11 +160,6 @@ int main(int argc, char* argv[]) {
 
     opWrapper.configure(wrapperStructPose, wrapperStructFace, wrapperStructHand, wrapperStructInput,
                         wrapperStructOutput);
-
-    ros::init(argc, argv, "golem_campose_node");
-
-    ros::NodeHandle nh;
-    ros::Rate r(30);
 
     ros::Publisher person_keypoint_pub = nh.advertise<campose_msgs::FramePoses>("person_keypoints", 1000);
 
