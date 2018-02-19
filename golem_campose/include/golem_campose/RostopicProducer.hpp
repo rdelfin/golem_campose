@@ -27,7 +27,7 @@ public:
 protected:
     virtual cv::Mat getRawFrame();
 private:
-    std::string rostopic;
+    std::string topic_name;
     ros::Subscriber sub;
     cv::Mat latest;
     bool img_set;
@@ -36,5 +36,5 @@ private:
 
     void topic_cb(const sensor_msgs::Image::ConstPtr& msg);
 
-    DELETE_COPY(FlycaptureProducer);
+    DELETE_COPY(RostopicProducer);
 };

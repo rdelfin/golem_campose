@@ -120,22 +120,17 @@ int main(int argc, char* argv[]) {
     poseModel = op::flagsToPoseModel(FLAGS_model_pose);
     // Check no contradictory flags enabled
     if (FLAGS_alpha_pose < 0. || FLAGS_alpha_pose > 1.)
-        op::error("Alpha value for blending must be in the range [0,1].", __LINE__, __FUNCTION__, __FILE__);
+        ROS_ERROR("Alpha value for blending must be in the range [0,1]. Found in %s:%s:%d", __FILE__, __FUNCTION__, __LINE__);
     if (FLAGS_scale_gap <= 0. && FLAGS_scale_number > 1)
-        op::error("Incompatible flag configuration: scale_gap must be greater than 0 or scale_number = 1.",
-                  __LINE__, __FUNCTION__, __FILE__);
+        ROS_ERROR("Incompatible flag configuration: scale_gap must be greater than 0 or scale_number = 1. Found in %s:%s:%d",
+                  __FILE__, __FUNCTION__, __LINE__);
 
     const auto poseModel = op::flagsToPoseModel(FLAGS_model_pose);
     const auto heatMapTypes = op::flagsToHeatMaps(false, false, false);
     const auto heatMapScale = op::flagsToHeatMapScaleMode(2);
 
     std::shared_ptr<RostopicProducer> producerSharedPtr;
-    try {
-        producerSharedPtr = std::make_shared<RostopicProducer>(camera_topic, nh);
-    } catch(camera_not_found_exception e) {
-        ROS_ERROR("%s", e.what());
-        exit(-1);
-    }
+    producerSharedPtr = std::make_shared<RostopicProducer>(camera_topic, nh);
 
     op::Wrapper<std::vector<op::Datum>> opWrapper{op::ThreadManagerMode::AsynchronousOut};
 

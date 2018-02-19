@@ -2,8 +2,8 @@
 #include <cv_bridge/cv_bridge.h>
 
 RostopicProducer::RostopicProducer(std::string topic_name, ros::NodeHandle nh, int queue_size)
-    : topic_name(topic_name) {
-    this->sub = nh.subscribe(this->topic_name, queue_size, RostopicProducer::topic_cb, this);
+    : topic_name(topic_name), Producer(op::ProducerType::Webcam) {
+    this->sub = nh.subscribe(this->topic_name, queue_size, &RostopicProducer::topic_cb, this);
     this->img_set = false;
     this->frame_count = 0;
 }
