@@ -13,6 +13,7 @@ add_message_files(
   FILES
   FramePoses.msg
   Keypoint.msg
+  Person.msg
   PersonAngles.msg
   PersonPose.msg
 )
