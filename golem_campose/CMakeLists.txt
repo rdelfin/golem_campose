@@ -41,7 +41,6 @@ add_dependencies(openpose_collector ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin
 target_link_libraries(openpose_collector
   ${OpenPose_LIBS}
   ${catkin_LIBRARIES}
-  ${FlyCapture2_LIBRARIES}
   ${OpenCV_LIBS}
   gflags
 )
