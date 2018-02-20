@@ -49,6 +49,7 @@ add_executable(person_finder src/person_finder.cpp)
 add_dependencies(person_finder ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(person_finder
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 
 
