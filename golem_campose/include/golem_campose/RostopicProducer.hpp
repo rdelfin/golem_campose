@@ -36,7 +36,7 @@ private:
     int frame_count;
     std::mutex frame_mtx;
 
-    std::Header fetched_header, latest_header;
+    std_msgs::Header fetched_header, latest_header;
 
     void topic_cb(const sensor_msgs::Image::ConstPtr& msg);
 
