@@ -18,7 +18,7 @@ void RostopicProducer::topic_cb(const sensor_msgs::Image::ConstPtr& msg) {
     }
 
     this->frame_mtx.lock();
-    this->latest_header = msg.header;
+    this->latest_header = msg->header;
     this->latest = cv_ptr->image.clone();
     this->img_set = true;
     this->frame_count++;
@@ -41,7 +41,7 @@ std::string RostopicProducer::getFrameName() {
     return std::string("#") + std::to_string(frame_count);
 }
 
-std_msgs::Header get_header() {
+std_msgs::Header RostopicProducer::get_header() {
     this->frame_mtx.lock();
     std_msgs::Header header = this->fetched_header;
     this->frame_mtx.unlock();
