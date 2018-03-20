@@ -11,7 +11,6 @@ RostopicProducer::RostopicProducer(std::string topic_name, ros::NodeHandle nh, i
 
 void RostopicProducer::topic_cb(const sensor_msgs::Image::ConstPtr& msg) {
     cv_bridge::CvImagePtr cv_ptr;
-    ROS_INFO("Frame arrived");
     try {
         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
     } catch(cv_bridge::Exception& e) {
@@ -28,18 +27,15 @@ void RostopicProducer::topic_cb(const sensor_msgs::Image::ConstPtr& msg) {
 
     lk.unlock();
     this->frame_cv.notify_all();
-
-    ROS_INFO("Frame saved");
 }
 
 cv::Mat RostopicProducer::getRawFrame() {
     std::unique_lock<std::mutex> lk(this->frame_mtx);
     this->img_set = false;
     this->frame_cv.wait(lk, [this]{return this->img_set;});
-    cv::Mat result = this->latest.clone();
     this->fetched_header = this->latest_header;
 
-    return result;
+    return this->latest.clone();
 }
 
 std::string RostopicProducer::getFrameName() {
@@ -50,8 +46,7 @@ std::string RostopicProducer::getFrameName() {
 
 std_msgs::Header RostopicProducer::get_header() {
     std::unique_lock<std::mutex> lk(this->frame_mtx);
-    std_msgs::Header header = this->fetched_header;
-    return header;
+    return this->fetched_header;
 }
 
 bool RostopicProducer::isOpened() const {
