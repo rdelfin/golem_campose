@@ -39,7 +39,7 @@ void image_cb(const sensor_msgs::Image::ConstPtr& msg) {
     image_map_lock.lock();
 
     if(image_queue.size() != image_map.size())
-        ROS_WARN("Person finder image queue and map are not the same size. Map has %lu elements and que has %lu elements.", image_map.size(), image_queue.size());
+        ROS_WARN("Person finder image queue and map are not the same size. Map has %lu elements and queue has %lu elements.", image_map.size(), image_queue.size());
 
     while(image_queue.size() > QUEUE_SIZE) {
         key = image_queue.front();
