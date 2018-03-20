@@ -7,5 +7,5 @@
         <!-- means video device 0, /dev/video0 -->
         <arg name="video_stream_provider" value="0" />
    </include>
-   <arg name="camera_topic" value="/webcam/image_raw" />
+   <param name="camera_topic" type="str" value="/webcam/image_raw" />
 </launch>

@@ -1,5 +1,5 @@
 <launch>
-    <node pkg="golem_campose" name="openpose_collector" type="openpose_collector" />
+    <node pkg="golem_campose" name="openpose_collector" type="openpose_collector" launch-prefix="xterm -e gdb --args" />
     <node pkg="golem_campose" name="person_finder" type="person_finder" />
     <node pkg="golem_campose" name="flycap_publisher" type="flycap_publisher" />
     <param name="camera_topic" type="str" value="/flycap_cam/image" />
