@@ -32,7 +32,7 @@ protected:
 private:
     std::string topic_name;
     ros::Subscriber sub;
-    cv::Mat latest;
+    cv::Mat latest, fetched;
     bool img_set;
     int frame_count;
     std::mutex frame_mtx;

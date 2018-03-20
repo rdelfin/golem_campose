@@ -22,8 +22,8 @@ void RostopicProducer::topic_cb(const sensor_msgs::Image::ConstPtr& msg) {
 
     this->latest_header = msg->header;
     this->latest = cv_ptr->image.clone();
-    this->img_set = true;
     this->frame_count++;
+    this->img_set = true;
 
     lk.unlock();
     this->frame_cv.notify_all();
@@ -33,9 +33,10 @@ cv::Mat RostopicProducer::getRawFrame() {
     std::unique_lock<std::mutex> lk(this->frame_mtx);
     this->img_set = false;
     this->frame_cv.wait(lk, [this]{return this->img_set;});
-    this->fetched_header = this->latest_header;
 
-    return this->latest.clone();
+    this->fetched = this->latest.clone();
+    this->fetched_header = this->latest_header;
+    return this->fetched;
 }
 
 std::string RostopicProducer::getFrameName() {
