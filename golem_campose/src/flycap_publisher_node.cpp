@@ -20,8 +20,6 @@ void frame_recv(fc2::Image* pImage, const void* pCallbackData) {
 
     sensor_msgs::ImagePtr msg_img = cv_bridge::CvImage(std_msgs::Header(), "bgr8", img).toImageMsg();
     img_pub.publish(msg_img);
-
-    ROS_INFO("FRAME RECIEVED. OF SIZE: (%d, %d)", img.cols, img.rows);
 }
 
 int main(int argc, char* argv[]) {
