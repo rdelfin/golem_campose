@@ -5,6 +5,7 @@
 
 #include <sensor_msgs/Image.h>
 
+#include <condition_variable>
 #include <mutex>
 #include <string>
 
@@ -35,6 +36,7 @@ private:
     bool img_set;
     int frame_count;
     std::mutex frame_mtx;
+    std::condition_variable frame_cv;
 
     std_msgs::Header fetched_header, latest_header;
 

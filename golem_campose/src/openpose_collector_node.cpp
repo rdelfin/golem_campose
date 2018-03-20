@@ -102,6 +102,7 @@ int main(int argc, char* argv[]) {
     ros::init(argc, argv, "golem_campose_node");
     ros::NodeHandle nh;
     ros::Rate r(30);
+    ros::AsyncSpinner spinner(4);
 
     std::string camera_topic;
     nh.param<std::string>("camera_topic", camera_topic, "/flycap_cam/image");
@@ -161,6 +162,8 @@ int main(int argc, char* argv[]) {
     opWrapper.disableMultiThreading();
     opWrapper.start();
 
+    spinner.start();
+
     while(ros::ok()) {
         long frame = 0;
         std::shared_ptr<std::vector<op::Datum>> datumProcessed;
@@ -195,6 +198,5 @@ int main(int argc, char* argv[]) {
             ROS_WARN("Processed datum could not be emplaced. At: %s:%d:%s", __FILE__, __LINE__, __FUNCTION__);
 
         r.sleep();
-        ros::spinOnce();
     }
 }

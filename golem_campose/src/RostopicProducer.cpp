@@ -3,6 +3,7 @@
 
 RostopicProducer::RostopicProducer(std::string topic_name, ros::NodeHandle nh, int queue_size)
     : topic_name(topic_name), Producer(op::ProducerType::Webcam) {
+    ROS_INFO("Subscribing to %s", this->topic_name.c_str());
     this->sub = nh.subscribe(this->topic_name, queue_size, &RostopicProducer::topic_cb, this);
     this->img_set = false;
     this->frame_count = 0;
@@ -10,6 +11,7 @@ RostopicProducer::RostopicProducer(std::string topic_name, ros::NodeHandle nh, i
 
 void RostopicProducer::topic_cb(const sensor_msgs::Image::ConstPtr& msg) {
     cv_bridge::CvImagePtr cv_ptr;
+    ROS_INFO("Frame arrived");
     try {
         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
     } catch(cv_bridge::Exception& e) {
@@ -17,34 +19,38 @@ void RostopicProducer::topic_cb(const sensor_msgs::Image::ConstPtr& msg) {
         return;
     }
 
-    this->frame_mtx.lock();
+    std::unique_lock<std::mutex> lk(this->frame_mtx);
+
     this->latest_header = msg->header;
     this->latest = cv_ptr->image.clone();
     this->img_set = true;
     this->frame_count++;
-    this->frame_mtx.unlock();
+
+    lk.unlock();
+    this->frame_cv.notify_all();
+
+    ROS_INFO("Frame saved");
 }
 
 cv::Mat RostopicProducer::getRawFrame() {
-    this->frame_mtx.lock();
+    std::unique_lock<std::mutex> lk(this->frame_mtx);
+    this->img_set = false;
+    this->frame_cv.wait(lk, [this]{return this->img_set;});
     cv::Mat result = this->latest.clone();
     this->fetched_header = this->latest_header;
-    this->frame_mtx.unlock();
 
-    return this->latest;
+    return result;
 }
 
 std::string RostopicProducer::getFrameName() {
-    this->frame_mtx.lock();
+    std::unique_lock<std::mutex> lk(this->frame_mtx);
     int frame_count = this->frame_count;
-    this->frame_mtx.unlock();
     return std::string("#") + std::to_string(frame_count);
 }
 
 std_msgs::Header RostopicProducer::get_header() {
-    this->frame_mtx.lock();
+    std::unique_lock<std::mutex> lk(this->frame_mtx);
     std_msgs::Header header = this->fetched_header;
-    this->frame_mtx.unlock();
     return header;
 }
 
