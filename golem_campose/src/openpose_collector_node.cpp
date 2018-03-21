@@ -105,6 +105,7 @@ void fill_pose_with_keypoints(campose_msgs::PersonPose& pose, const op::Array<fl
 
 // Again, reference https://github.com/ildoonet/ros-openpose/blob/master/openpose_ros_node/src/openpose_ros_node.cpp
 void camera_cb(const sensor_msgs::Image::ConstPtr& msg) {
+    ROS_INFO("CB CALLED");
     cv_bridge::CvImagePtr cv_ptr;
     try {
         cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
@@ -113,7 +114,9 @@ void camera_cb(const sensor_msgs::Image::ConstPtr& msg) {
     }
     if (cv_ptr->image.empty()) return;
 
-    const op::Point<int> imageSize{cv_ptr->image.cols, cv_ptr->image.rows};
+    cv::Mat img_mat = cv_ptr->image.clone();
+
+    const op::Point<int> imageSize{img_mat.cols, img_mat.rows};
     // Step 2 - Get desired scale sizes
     std::vector<double> scaleInputToNetInputs;
     std::vector<op::Point<int>> netInputSizes;
@@ -122,10 +125,10 @@ void camera_cb(const sensor_msgs::Image::ConstPtr& msg) {
     std::tie(scaleInputToNetInputs, netInputSizes, scaleInputToOutput, outputResolution)
         = scaleAndSizeExtractor->extract(imageSize);
     // Step 3 - Format input image to OpenPose input and output formats
-    const auto netInputArray = cvMatToOpInput.createArray(cv_ptr->image, scaleInputToNetInputs, netInputSizes);
-    auto outputArray = cvMatToOpOutput.createArray(cv_ptr->image, scaleInputToOutput, outputResolution);
+    std::vector<op::Array<float>> netInputArray = cvMatToOpInput.createArray(img_mat, scaleInputToNetInputs, netInputSizes);
+    op::Array<float> outputArray = cvMatToOpOutput.createArray(img_mat, scaleInputToOutput, outputResolution);
     // Step 4 - Estimate poseKeypoints
-    poseExtractorPtr->forwardPass(netInputArray, imageSize, scaleInputToNetInputs);
+    /*poseExtractorPtr->forwardPass(netInputArray, imageSize, scaleInputToNetInputs);
     const auto poseKeypoints = poseExtractorPtr->getPoseKeypoints();
     const auto scaleNetToOutput = poseExtractorPtr->getScaleNetToOutput();
     // Step 5 - Render pose
@@ -144,7 +147,7 @@ void camera_cb(const sensor_msgs::Image::ConstPtr& msg) {
         fill_pose_with_keypoints(framePosesMsg.poses[person], poseKeypoints, person);
     }
     
-    person_keypoint_pub.publish(framePosesMsg);
+    person_keypoint_pub.publish(framePosesMsg);*/
 }
 
 // Heavily based on ildoonet's ros-openpose node here: https://github.com/ildoonet/ros-openpose/blob/master/openpose_ros_node/src/openpose_ros_node.cpp
@@ -166,7 +169,7 @@ int main(int argc, char* argv[]) {
 
     // Supress OpenPose logging
     FLAGS_logtostderr = false;
-    google::InitGoogleLogging(argv[0]);
+    //google::InitGoogleLogging(argv[0]);
     op::ConfigureLog::setPriorityThreshold(op::Priority::NoOutput);
     op::Profiler::setDefaultX(1000);
 
