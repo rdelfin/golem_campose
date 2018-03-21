@@ -154,7 +154,6 @@ int main(int argc, char* argv[]) {
     // ROS initialization
     ros::init(argc, argv, "golem_campose_node");
     ros::NodeHandle nh;
-    ros::AsyncSpinner spinner(4);
     ros::Rate r(10);
 
     std::string camera_topic;
@@ -184,8 +183,6 @@ int main(int argc, char* argv[]) {
     const auto heatMapTypes = op::flagsToHeatMaps(false, false, false);
     const auto heatMapScale = op::flagsToHeatMapScaleMode(2);
 
-
-
     // Initialize
     scaleAndSizeExtractor = new op::ScaleAndSizeExtractor(netInputSize, outputSize, FLAGS_scale_number, FLAGS_scale_gap);
     poseExtractorCaffe = new op::PoseExtractorCaffe(poseModel, FLAGS_model_folder, FLAGS_num_gpu_start);
@@ -195,6 +192,5 @@ int main(int argc, char* argv[]) {
     ros::Subscriber image_sub = nh.subscribe(camera_topic, 1, camera_cb);
     person_keypoint_pub = nh.advertise<campose_msgs::FramePoses>("person_keypoints", 1000);
     
-    spinner.start();
-    ros::waitForShutdown();
+    ros::spin();
 }
