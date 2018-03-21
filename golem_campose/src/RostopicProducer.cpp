@@ -36,7 +36,7 @@ cv::Mat RostopicProducer::getRawFrame() {
 
     this->fetched = this->latest.clone();
     this->fetched_header = this->latest_header;
-    return this->fetched;
+    return this->fetched.clone();
 }
 
 std::string RostopicProducer::getFrameName() {
