@@ -72,6 +72,9 @@ op::OpOutputToCvMat opOutputToCvMat;
 ros::Publisher person_keypoint_pub;
 op::PoseGpuRenderer* poseGpuRenderer;
 
+std::vector<op::Array<float>> netInputArray;
+op::Array<float> outputArray;
+
 void fill_pose_with_keypoints(campose_msgs::PersonPose& pose, const op::Array<float>& keypoints, int person) {
     pose.keypoint_data.resize(keypoints.getSize(1));
     for (auto bodyPart = 0; bodyPart < keypoints.getSize(1); bodyPart++) {
@@ -125,8 +128,8 @@ void camera_cb(const sensor_msgs::Image::ConstPtr& msg) {
     std::tie(scaleInputToNetInputs, netInputSizes, scaleInputToOutput, outputResolution)
         = scaleAndSizeExtractor->extract(imageSize);
     // Step 3 - Format input image to OpenPose input and output formats
-    std::vector<op::Array<float>> netInputArray = cvMatToOpInput.createArray(img_mat, scaleInputToNetInputs, netInputSizes);
-    op::Array<float> outputArray = cvMatToOpOutput.createArray(img_mat, scaleInputToOutput, outputResolution);
+    netInputArray = cvMatToOpInput.createArray(img_mat, scaleInputToNetInputs, netInputSizes);
+    outputArray = cvMatToOpOutput.createArray(img_mat, scaleInputToOutput, outputResolution);
     // Step 4 - Estimate poseKeypoints
     /*poseExtractorPtr->forwardPass(netInputArray, imageSize, scaleInputToNetInputs);
     const auto poseKeypoints = poseExtractorPtr->getPoseKeypoints();
