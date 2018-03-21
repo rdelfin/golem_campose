@@ -5,7 +5,8 @@
 #include <campose_msgs/FramePoses.h>
 #include <campose_msgs/PersonPose.h>
 #include <campose_msgs/Keypoint.h>
-#include <golem_campose/RostopicProducer.hpp>
+
+#include <cv_bridge/cv_bridge.h>
 
 #include <openpose/headers.hpp>
 
@@ -13,6 +14,8 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+
+#include <sensor_msgs/Image.h>
 
 // Allow Google Flags in Ubuntu 14
 #ifndef GFLAGS_GFLAGS_H_
@@ -62,7 +65,15 @@ DEFINE_int32(img_height,                700,            "The hight in pixels of 
 
 op::Point<int> outputSize;
 op::Point<int> netInputSize;
+op::Point<int> netOutputSize;
 op::PoseModel poseModel;
+
+op::ScaleAndSizeExtractor *scaleAndSizeExtractor;
+op::CvMatToOpInput cvMatToOpInput;
+op::CvMatToOpOutput cvMatToOpOutput;
+op::PoseExtractorCaffe *poseExtractorCaffe;
+
+ros::Publisher person_keypoint_pub;
 
 void fill_pose_with_keypoints(campose_msgs::PersonPose& pose, const op::Array<float>& keypoints, int person) {
     pose.keypoint_data.resize(keypoints.getSize(1));
@@ -95,14 +106,56 @@ void fill_pose_with_keypoints(campose_msgs::PersonPose& pose, const op::Array<fl
     pose.left_ear       = pose.keypoint_data[17];
 }
 
+// Again, reference https://github.com/ildoonet/ros-openpose/blob/master/openpose_ros_node/src/openpose_ros_node.cpp
+void camera_cb(const sensor_msgs::Image::ConstPtr& msg) {
+    cv_bridge::CvImagePtr cv_ptr;
+    try {
+        cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
+    } catch (cv_bridge::Exception& e) {
+        return;
+    }
+    if (cv_ptr->image.empty()) return;
+
+    const op::Point<int> imageSize{cv_ptr->image.cols, cv_ptr->image.rows};
+
+    std::vector<double> scaleInputToNetInputs;
+    std::vector<op::Point<int>> netInputSizes;
+    double scaleInputToOutput;
+    op::Point<int> outputResolution;
+
+    // process
+    std::tie(scaleInputToNetInputs, netInputSizes, scaleInputToOutput, outputResolution)
+        = scaleAndSizeExtractor->extract(imageSize);
+
+    const auto netInputArray = cvMatToOpInput.createArray(cv_ptr->image, scaleInputToNetInputs, netInputSizes);
+    auto outputArray = cvMatToOpOutput.createArray(cv_ptr->image, scaleInputToOutput, outputResolution);
+    // Step 3 - Estimate poseKeypoints
+    poseExtractorCaffe->forwardPass(netInputArray, imageSize, scaleInputToNetInputs);
+    const auto poseKeypoints = poseExtractorCaffe->getPoseKeypoints();
+
+    // publish skeleton info.
+    std_msgs::Header header = msg->header;
+
+    campose_msgs::FramePoses framePosesMsg;
+    framePosesMsg.header = header;
+    framePosesMsg.poses.resize(poseKeypoints.getSize(0));
+
+    for (auto person = 0; person < poseKeypoints.getSize(0); person++) {
+        fill_pose_with_keypoints(framePosesMsg.poses[person], poseKeypoints, person);
+    }
+    
+    person_keypoint_pub.publish(framePosesMsg);
+}
+
+// Heavily based on ildoonet's ros-openpose node here: https://github.com/ildoonet/ros-openpose/blob/master/openpose_ros_node/src/openpose_ros_node.cpp
 int main(int argc, char* argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
     // ROS initialization
     ros::init(argc, argv, "golem_campose_node");
     ros::NodeHandle nh;
-    ros::Rate r(30);
     ros::AsyncSpinner spinner(4);
+    ros::Rate r(10);
 
     std::string camera_topic;
     nh.param<std::string>("camera_topic", camera_topic, "/flycap_cam/image");
@@ -124,79 +177,24 @@ int main(int argc, char* argv[]) {
         ROS_ERROR("Alpha value for blending must be in the range [0,1]. Found in %s:%s:%d", __FILE__, __FUNCTION__, __LINE__);
     if (FLAGS_scale_gap <= 0. && FLAGS_scale_number > 1)
         ROS_ERROR("Incompatible flag configuration: scale_gap must be greater than 0 or scale_number = 1. Found in %s:%s:%d",
-                  __FILE__, __FUNCTION__, __LINE__);
+                  __FILE__, __FUNCTION__, __LINE__);\
+    netOutputSize = netInputSize;   
 
     const auto poseModel = op::flagsToPoseModel(FLAGS_model_pose);
     const auto heatMapTypes = op::flagsToHeatMaps(false, false, false);
     const auto heatMapScale = op::flagsToHeatMapScaleMode(2);
 
-    std::shared_ptr<RostopicProducer> producerSharedPtr;
-    producerSharedPtr = std::make_shared<RostopicProducer>(camera_topic, nh);
 
-    op::Wrapper<std::vector<op::Datum>> opWrapper{op::ThreadManagerMode::AsynchronousOut};
 
-    const op::WrapperStructPose wrapperStructPose = {true, netInputSize, outputSize, op::ScaleMode::ZeroToOne, -1,
-                                                     FLAGS_num_gpu_start, FLAGS_scale_number,
-                                                     (float)FLAGS_scale_gap, op::flagsToRenderMode(FLAGS_render_pose),
-                                                     poseModel, true, (float)FLAGS_alpha_pose, (float)FLAGS_alpha_heatmap, FLAGS_part_to_show,
-                                                     FLAGS_model_folder, heatMapTypes, heatMapScale, false,
-                                                     (float)FLAGS_render_threshold, false};
+    // Initialize
+    scaleAndSizeExtractor = new op::ScaleAndSizeExtractor(netInputSize, outputSize, FLAGS_scale_number, FLAGS_scale_gap);
+    poseExtractorCaffe = new op::PoseExtractorCaffe(poseModel, FLAGS_model_folder, FLAGS_num_gpu_start);
 
-    const op::WrapperStructFace wrapperStructFace{};
-    const op::WrapperStructHand wrapperStructHand{};
-    // Producer (use default to disable any input)
-    const op::WrapperStructInput wrapperStructInput{producerSharedPtr, 0, (long long unsigned int)-1, true, false, 0, false};
+    poseExtractorCaffe->initializationOnThread();
 
-    const bool displayGui = false;
-    const bool guiVerbose = false;
-    const bool fullScreen = false;
-    const op::WrapperStructOutput wrapperStructOutput{displayGui, guiVerbose, fullScreen, "",
-                                                      op::stringToDataFormat("yml"),
-                                                      "", "", "", "png", "", "", "png"};
-
-    opWrapper.configure(wrapperStructPose, wrapperStructFace, wrapperStructHand, wrapperStructInput,
-                        wrapperStructOutput);
-
-    ros::Publisher person_keypoint_pub = nh.advertise<campose_msgs::FramePoses>("person_keypoints", 1000);
-
-    opWrapper.disableMultiThreading();
-    opWrapper.start();
-
+    ros::Subscriber image_sub = nh.subscribe(camera_topic, 1, camera_cb);
+    person_keypoint_pub = nh.advertise<campose_msgs::FramePoses>("person_keypoints", 1000);
+    
     spinner.start();
-
-    while(ros::ok()) {
-        long frame = 0;
-        std::shared_ptr<std::vector<op::Datum>> datumProcessed;
-        if(opWrapper.waitAndPop(datumProcessed)) {
-            if(datumProcessed == nullptr || datumProcessed->empty()) {
-                ROS_WARN("Nullptr or empty datumProcessed found. At: %s:%d:%s", __FILE__, __LINE__, __FUNCTION__);
-            } else {
-                std_msgs::Header header = producerSharedPtr->get_header();
-                const auto& poseKeypoints = datumProcessed->at(0).poseKeypoints;
-                ROS_INFO("Keypoints sent: (%d, %d)", poseKeypoints.getSize(0), poseKeypoints.getSize(1));
-                // ROS MSG to send
-                campose_msgs::FramePoses framePosesMsg;
-                framePosesMsg.header = header;
-                framePosesMsg.poses.resize(poseKeypoints.getSize(0));
-
-                for (auto person = 0; person < poseKeypoints.getSize(0); person++) {
-                    fill_pose_with_keypoints(framePosesMsg.poses[person], poseKeypoints, person);
-                }
-
-                person_keypoint_pub.publish(framePosesMsg);
-
-                cv::Mat scaled_img;
-                cv::Mat raw_img = datumProcessed->at(0).cvOutputData;
-                cv::Size scale_factor(raw_img.cols * FLAGS_img_height / raw_img.rows, FLAGS_img_height);
-                cv::resize(raw_img, scaled_img, scale_factor);
-                cv::imshow("User worker GUI", scaled_img);
-                cv::waitKey(1);
-                frame++;
-            }
-        }
-        else
-            ROS_WARN("Processed datum could not be emplaced. At: %s:%d:%s", __FILE__, __LINE__, __FUNCTION__);
-
-        r.sleep();
-    }
+    ros::waitForShutdown();
 }
