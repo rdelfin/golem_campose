@@ -63,17 +63,14 @@ DEFINE_int32(render_pose,               -1,             "Set to 0 for no renderi
 
 DEFINE_int32(img_height,                700,            "The hight in pixels of the image rendered.");
 
-op::Point<int> outputSize;
-op::Point<int> netInputSize;
-op::Point<int> netOutputSize;
-op::PoseModel poseModel;
-
+std::shared_ptr<op::PoseExtractorCaffe> poseExtractorPtr;
 op::ScaleAndSizeExtractor *scaleAndSizeExtractor;
 op::CvMatToOpInput cvMatToOpInput;
 op::CvMatToOpOutput cvMatToOpOutput;
-op::PoseExtractorCaffe *poseExtractorCaffe;
+op::OpOutputToCvMat opOutputToCvMat;
 
 ros::Publisher person_keypoint_pub;
+op::PoseGpuRenderer* poseGpuRenderer;
 
 void fill_pose_with_keypoints(campose_msgs::PersonPose& pose, const op::Array<float>& keypoints, int person) {
     pose.keypoint_data.resize(keypoints.getSize(1));
@@ -117,21 +114,24 @@ void camera_cb(const sensor_msgs::Image::ConstPtr& msg) {
     if (cv_ptr->image.empty()) return;
 
     const op::Point<int> imageSize{cv_ptr->image.cols, cv_ptr->image.rows};
-
+    // Step 2 - Get desired scale sizes
     std::vector<double> scaleInputToNetInputs;
     std::vector<op::Point<int>> netInputSizes;
     double scaleInputToOutput;
     op::Point<int> outputResolution;
-
-    // process
     std::tie(scaleInputToNetInputs, netInputSizes, scaleInputToOutput, outputResolution)
         = scaleAndSizeExtractor->extract(imageSize);
-
+    // Step 3 - Format input image to OpenPose input and output formats
     const auto netInputArray = cvMatToOpInput.createArray(cv_ptr->image, scaleInputToNetInputs, netInputSizes);
     auto outputArray = cvMatToOpOutput.createArray(cv_ptr->image, scaleInputToOutput, outputResolution);
-    // Step 3 - Estimate poseKeypoints
-    poseExtractorCaffe->forwardPass(netInputArray, imageSize, scaleInputToNetInputs);
-    const auto poseKeypoints = poseExtractorCaffe->getPoseKeypoints();
+    // Step 4 - Estimate poseKeypoints
+    poseExtractorPtr->forwardPass(netInputArray, imageSize, scaleInputToNetInputs);
+    const auto poseKeypoints = poseExtractorPtr->getPoseKeypoints();
+    const auto scaleNetToOutput = poseExtractorPtr->getScaleNetToOutput();
+    // Step 5 - Render pose
+    poseGpuRenderer->renderPose(outputArray, poseKeypoints, scaleInputToOutput, scaleNetToOutput);
+    // Step 6 - OpenPose output format to cv::Mat
+    auto outputImage = opOutputToCvMat.formatToCvMat(outputArray);
 
     // publish skeleton info.
     std_msgs::Header header = msg->header;
@@ -149,6 +149,8 @@ void camera_cb(const sensor_msgs::Image::ConstPtr& msg) {
 
 // Heavily based on ildoonet's ros-openpose node here: https://github.com/ildoonet/ros-openpose/blob/master/openpose_ros_node/src/openpose_ros_node.cpp
 int main(int argc, char* argv[]) {
+    ROS_INFO("Starting program...");
+
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
     // ROS initialization
@@ -159,38 +161,46 @@ int main(int argc, char* argv[]) {
     std::string camera_topic;
     nh.param<std::string>("camera_topic", camera_topic, "/flycap_cam/image");
 
+
+    ROS_INFO("ROS Setup.");
+
     // Supress OpenPose logging
     FLAGS_logtostderr = false;
     google::InitGoogleLogging(argv[0]);
     op::ConfigureLog::setPriorityThreshold(op::Priority::NoOutput);
     op::Profiler::setDefaultX(1000);
 
-    // outputSize
-    outputSize = op::flagsToPoint(FLAGS_output_resolution, "-1x-1");
+    ROS_INFO("Log setup.");
+
+    const auto outputSize = op::flagsToPoint(FLAGS_output_resolution, "-1x-1");
     // netInputSize
-    netInputSize = op::flagsToPoint(FLAGS_net_resolution, "-1x368");
+    const auto netInputSize = op::flagsToPoint(FLAGS_net_resolution, "-1x368");
     // poseModel
-    poseModel = op::flagsToPoseModel(FLAGS_model_pose);
+    const auto poseModel = op::flagsToPoseModel(FLAGS_model_pose);
     // Check no contradictory flags enabled
     if (FLAGS_alpha_pose < 0. || FLAGS_alpha_pose > 1.)
-        ROS_ERROR("Alpha value for blending must be in the range [0,1]. Found in %s:%s:%d", __FILE__, __FUNCTION__, __LINE__);
+        op::error("Alpha value for blending must be in the range [0,1].", __LINE__, __FUNCTION__, __FILE__);
     if (FLAGS_scale_gap <= 0. && FLAGS_scale_number > 1)
-        ROS_ERROR("Incompatible flag configuration: scale_gap must be greater than 0 or scale_number = 1. Found in %s:%s:%d",
-                  __FILE__, __FUNCTION__, __LINE__);\
-    netOutputSize = netInputSize;   
+        op::error("Incompatible flag configuration: scale_gap must be greater than 0 or scale_number = 1.",
+                  __LINE__, __FUNCTION__, __FILE__);
 
-    const auto poseModel = op::flagsToPoseModel(FLAGS_model_pose);
-    const auto heatMapTypes = op::flagsToHeatMaps(false, false, false);
-    const auto heatMapScale = op::flagsToHeatMapScaleMode(2);
-
-    // Initialize
     scaleAndSizeExtractor = new op::ScaleAndSizeExtractor(netInputSize, outputSize, FLAGS_scale_number, FLAGS_scale_gap);
-    poseExtractorCaffe = new op::PoseExtractorCaffe(poseModel, FLAGS_model_folder, FLAGS_num_gpu_start);
+    poseExtractorPtr = std::make_shared<op::PoseExtractorCaffe>(poseModel, FLAGS_model_folder,
+                                                                     FLAGS_num_gpu_start);
+    poseGpuRenderer = new op::PoseGpuRenderer(poseModel, poseExtractorPtr, (float)FLAGS_render_threshold,
+                                              !FLAGS_disable_blending, (float)FLAGS_alpha_pose, (float)FLAGS_alpha_heatmap);
+    poseGpuRenderer->setElementToRender(FLAGS_part_to_show);
+    op::FrameDisplayer frameDisplayer("OpenPose Tutorial - Example 2", outputSize);
+    // Step 4 - Initialize resources on desired thread (in this case single thread, i.e. we init resources here)
+    poseExtractorPtr->initializationOnThread();
+    poseGpuRenderer->initializationOnThread();
 
-    poseExtractorCaffe->initializationOnThread();
+    ROS_INFO("Finished initialization");
 
     ros::Subscriber image_sub = nh.subscribe(camera_topic, 1, camera_cb);
     person_keypoint_pub = nh.advertise<campose_msgs::FramePoses>("person_keypoints", 1000);
     
+    ROS_INFO("Subscribers and publishers setup.");
+
     ros::spin();
 }
