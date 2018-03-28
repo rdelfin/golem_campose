@@ -119,8 +119,7 @@ void camera_cb(const sensor_msgs::ImageConstPtr& msg) {
     }
     if (cv_ptr->image.empty()) return;
 
-    cv::Mat img_mat;
-    cv_ptr->image.copyTo(img_mat);
+    cv::Mat img_mat = cv_ptr->image.clone();
 
     cv::imshow(WINDOW_NAME, img_mat);
     cv::waitKey(1);
@@ -133,9 +132,8 @@ void camera_cb(const sensor_msgs::ImageConstPtr& msg) {
     op::Point<int> outputResolution;
     std::tie(scaleInputToNetInputs, netInputSizes, scaleInputToOutput, outputResolution)
         = scaleAndSizeExtractor->extract(imageSize);
-    ROS_INFO("Scale input to output: %f", scaleInputToOutput);
     // Step 3 - Format input image to OpenPose input and output formats
-    /*netInputArray = cvMatToOpInput.createArray(img_mat, scaleInputToNetInputs, netInputSizes);
+    netInputArray = cvMatToOpInput.createArray(img_mat, scaleInputToNetInputs, netInputSizes);
     outputArray = cvMatToOpOutput.createArray(img_mat, scaleInputToOutput, outputResolution);
     // Step 4 - Estimate poseKeypoints
     poseExtractorPtr->forwardPass(netInputArray, imageSize, scaleInputToNetInputs);
@@ -157,7 +155,7 @@ void camera_cb(const sensor_msgs::ImageConstPtr& msg) {
         fill_pose_with_keypoints(framePosesMsg.poses[person], poseKeypoints, person);
     }
     
-    person_keypoint_pub.publish(framePosesMsg);*/
+    person_keypoint_pub.publish(framePosesMsg);
 }
 
 // Heavily based on ildoonet's ros-openpose node here: https://github.com/ildoonet/ros-openpose/blob/master/openpose_ros_node/src/openpose_ros_node.cpp
