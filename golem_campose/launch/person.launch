@@ -3,4 +3,5 @@
     <node pkg="golem_campose" name="person_finder" type="person_finder" />
     <node pkg="golem_campose" name="flycap_publisher" type="flycap_publisher" />
     <param name="camera_topic" type="str" value="/flycap_cam/image" />
+    <param name="image_width" type="int" value="500" />
 </launch>

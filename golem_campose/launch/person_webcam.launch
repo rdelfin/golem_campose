@@ -8,4 +8,5 @@
         <arg name="video_stream_provider" value="0" />
    </include>
    <param name="camera_topic" type="str" value="/webcam/image_raw" />
+    <param name="image_width" type="int" value="500" />
 </launch>

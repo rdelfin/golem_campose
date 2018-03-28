@@ -75,6 +75,8 @@ op::PoseGpuRenderer* poseGpuRenderer;
 std::vector<op::Array<float>> netInputArray;
 op::Array<float> outputArray;
 
+int IMAGE_WIDTH;
+
 void fill_pose_with_keypoints(campose_msgs::PersonPose& pose, const op::Array<float>& keypoints, int person) {
     pose.keypoint_data.resize(keypoints.getSize(1));
     for (auto bodyPart = 0; bodyPart < keypoints.getSize(1); bodyPart++) {
@@ -121,8 +123,17 @@ void camera_cb(const sensor_msgs::ImageConstPtr& msg) {
 
     cv::Mat img_mat = cv_ptr->image.clone();
 
-    cv::imshow(WINDOW_NAME, img_mat);
+    // Show an openCV image
+    cv::Mat display_img;
+    cv::Size window_size(IMAGE_WIDTH, (int)(IMAGE_WIDTH * (float)img_mat.rows/(float)img_mat.cols));
+    cv::resize(img_mat, display_img, window_size);
+    cv::imshow(WINDOW_NAME, display_img);
     cv::waitKey(1);
+
+
+    //==================================================
+    //============== OPENPOSE PROCESSING ===============
+    //==================================================
 
     const op::Point<int> imageSize{img_mat.cols, img_mat.rows};
     // Step 2 - Get desired scale sizes
@@ -162,7 +173,7 @@ void camera_cb(const sensor_msgs::ImageConstPtr& msg) {
 int main(int argc, char* argv[]) {
     ROS_INFO("Starting program...");
 
-    cv::namedWindow(WINDOW_NAME, cv::WINDOW_FULLSCREEN);
+    cv::namedWindow(WINDOW_NAME);
 
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
@@ -173,6 +184,7 @@ int main(int argc, char* argv[]) {
 
     std::string camera_topic;
     nh.param<std::string>("camera_topic", camera_topic, "/flycap_cam/image");
+    nh.param<int>("image_width", IMAGE_WIDTH, 900);
 
 
     ROS_INFO("ROS Setup.");
