@@ -17,7 +17,7 @@
 
 #define CONFIDENCE_THRESHOLD (0.1)
 #define POS_TO_THETA         (1)
-#define QUEUE_SIZE           (1000)
+#define QUEUE_SIZE           (100)
 #define AVG_RADIUS           (5)
 
 std::mutex image_map_lock;
