@@ -10,6 +10,8 @@ namespace fc2 = FlyCapture2;
 
 ros::Publisher img_pub;
 
+int frame_id = 0;
+
 void frame_recv(fc2::Image* pImage, const void* pCallbackData) {
     fc2::Image rgbImage;
     cv_bridge::CvImagePtr cv_ptr;
@@ -19,7 +21,12 @@ void frame_recv(fc2::Image* pImage, const void* pCallbackData) {
     cv::Mat img(rgbImage.GetRows(), rgbImage.GetCols(), CV_8UC3, rgbImage.GetData(),rowBytes);
 
     sensor_msgs::ImagePtr msg_img = cv_bridge::CvImage(std_msgs::Header(), "bgr8", img).toImageMsg();
+    msg_img->header.seq = frame_id;
+    msg_img->header.frame_id = std::to_string(frame_id);
+    msg_img->header.stamp = ros::Time::now();
+
     img_pub.publish(msg_img);
+    frame_id++;
 }
 
 int main(int argc, char* argv[]) {
