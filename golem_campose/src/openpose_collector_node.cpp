@@ -63,6 +63,8 @@ DEFINE_int32(render_pose,               -1,             "Set to 0 for no renderi
 
 DEFINE_int32(img_height,                700,            "The hight in pixels of the image rendered.");
 
+const std::string WINDOW_NAME = "Window 1";
+
 std::shared_ptr<op::PoseExtractorCaffe> poseExtractorPtr;
 op::ScaleAndSizeExtractor *scaleAndSizeExtractor;
 op::CvMatToOpInput cvMatToOpInput;
@@ -76,6 +78,102 @@ std::vector<op::Array<float>> netInputArray;
 op::Array<float> outputArray;
 
 int IMAGE_WIDTH;
+
+void display_person_image(const cv::Mat& img_mat, const campose_msgs::FramePoses& framePosesMsg) {
+    cv::Mat edited_img = img_mat.clone();
+
+    // Iterate over every person
+    for(campose_msgs::PersonPose person : framePosesMsg.poses) {
+        // First, add each joint point
+        for(campose_msgs::Keypoint kp : person.keypoint_data)
+            if(kp.confidence > 0)
+                cv::circle(edited_img, cv::Point((int)kp.x, (int)kp.y), 20, cv::Scalar(255, 0, 0), -1);
+
+        // Next, add every "bone" in the skeleton
+        cv::Point neck          (person.neck.x,           person.neck.y),
+                  nose          (person.nose.x,           person.nose.y),
+                  right_shoulder(person.right_shoulder.x, person.right_shoulder.y),
+                  right_elbow   (person.right_elbow.x,    person.right_elbow.y),
+                  right_wrist   (person.right_wrist.x,    person.right_wrist.y),
+                  left_shoulder (person.left_shoulder.x,  person.right_shoulder.y),
+                  left_elbow    (person.left_elbow.x,     person.left_elbow.y),
+                  left_wrist    (person.left_wrist.x,     person.left_wrist.y),
+                  right_hip     (person.right_hip.x,      person.right_hip.y),
+                  right_knee    (person.right_knee.x,     person.right_knee.y),
+                  right_ankle   (person.right_ankle.x,    person.right_ankle.y),
+                  left_hip      (person.left_hip.x,       person.left_hip.y),
+                  left_knee     (person.left_knee.x,      person.left_knee.y),
+                  left_ankle    (person.left_ankle.x,     person.left_ankle.y),
+                  right_eye     (person.right_eye.x,      person.right_eye.y),
+                  left_eye      (person.left_eye.x,       person.left_eye.y),
+                  right_ear     (person.right_ear.x,      person.right_ear.y),
+                  left_ear      (person.left_ear.x,       person.left_ear.y);
+        cv::Scalar line_color(0, 0, 255);
+        int line_thickness = 10;
+
+
+        // Nose-neck
+        if(person.nose.confidence > 0 && person.neck.confidence > 0)
+            cv::line(edited_img, nose, neck, line_color, line_thickness);
+        // rshoulder-neck
+        if(person.right_shoulder.confidence > 0 && person.neck.confidence > 0)
+            cv::line(edited_img, right_shoulder, neck, line_thickness, 10);
+        // rshoulder-relbow
+        if(person.right_elbow.confidence > 0 && person.right_shoulder.confidence > 0)
+            cv::line(edited_img, right_elbow, right_shoulder, line_color, line_thickness);
+        // rwrist-relbow
+        if(person.right_elbow.confidence > 0 && person.right_wrist.confidence > 0)
+            cv::line(edited_img, right_elbow, right_wrist, line_color, line_thickness);
+        // lshoulder-neck
+        if(person.left_shoulder.confidence > 0 && person.neck.confidence > 0)
+            cv::line(edited_img, left_shoulder, neck, line_color, line_thickness);
+        // lelbow-lshoulder
+        if(person.left_elbow.confidence > 0 && person.left_shoulder.confidence > 0)
+            cv::line(edited_img, left_elbow, left_shoulder, line_color, line_thickness);
+        // lwrist-lelbow
+        if(person.left_elbow.confidence > 0 && person.left_wrist.confidence > 0)
+            cv::line(edited_img, left_elbow, left_wrist, line_color, line_thickness);
+        // rhip-neck
+        if(person.right_hip.confidence > 0 && person.neck.confidence > 0)
+            cv::line(edited_img, right_hip, neck, line_color, line_thickness);
+        // rknee-rhip
+        if(person.right_hip.confidence > 0 && person.right_knee.confidence > 0)
+            cv::line(edited_img, right_knee, right_hip, line_color, line_thickness);
+        // rankle-rknee
+        if(person.right_ankle.confidence > 0 && person.right_knee.confidence > 0)
+            cv::line(edited_img, right_ankle, right_knee, line_color, line_thickness);
+        // lhip-neck
+        if(person.left_hip.confidence > 0 && person.neck.confidence > 0)
+            cv::line(edited_img, left_hip, neck, line_color, line_thickness);
+        // lknee-lhip
+        if(person.left_knee.confidence > 0 && person.left_hip.confidence > 0)
+            cv::line(edited_img, left_knee, left_hip, line_color, line_thickness);
+        // lankle-lknee
+        if(person.left_ankle.confidence > 0 && person.left_knee.confidence > 0)
+            cv::line(edited_img, left_ankle, left_knee, line_color, line_thickness);
+        // reye-nose
+        if(person.right_eye.confidence > 0 && person.nose.confidence > 0)
+            cv::line(edited_img, right_eye, nose, line_color, line_thickness);
+        // leye-nose
+        if(person.left_eye.confidence > 0 && person.nose.confidence > 0)
+            cv::line(edited_img, left_eye, nose, line_color, line_thickness);
+        // rear-reye
+        if(person.right_ear.confidence > 0 && person.right_eye.confidence > 0)
+            cv::line(edited_img, right_ear, right_eye, line_color, line_thickness);
+        // lear-leye
+        if(person.left_ear.confidence > 0 && person.left_eye.confidence > 0)
+            cv::line(edited_img, left_ear, left_eye, line_color, line_thickness);
+    }
+
+    // Create appropriately sized openCV image
+    cv::Mat display_img;
+    cv::Size window_size(IMAGE_WIDTH, (int)(IMAGE_WIDTH * (float)edited_img.rows/(float)edited_img.cols));
+    cv::resize(edited_img, display_img, window_size);
+
+
+    cv::imshow(WINDOW_NAME, display_img);
+    cv::waitKey(1);
+}
 
 void fill_pose_with_keypoints(campose_msgs::PersonPose& pose, const op::Array<float>& keypoints, int person) {
     pose.keypoint_data.resize(keypoints.getSize(1));
@@ -108,8 +206,6 @@ void fill_pose_with_keypoints(campose_msgs::PersonPose& pose, const op::Array<fl
     pose.left_ear       = pose.keypoint_data[17];
 }
 
-const std::string WINDOW_NAME = "Window 1";
-
 // Again, reference https://github.com/ildoonet/ros-openpose/blob/master/openpose_ros_node/src/openpose_ros_node.cpp
 void camera_cb(const sensor_msgs::ImageConstPtr& msg) {
     cv_bridge::CvImagePtr cv_ptr;
@@ -122,14 +218,6 @@ void camera_cb(const sensor_msgs::ImageConstPtr& msg) {
     if (cv_ptr->image.empty()) return;
 
     cv::Mat img_mat = cv_ptr->image.clone();
-
-    // Show an openCV image
-    cv::Mat display_img;
-    cv::Size window_size(IMAGE_WIDTH, (int)(IMAGE_WIDTH * (float)img_mat.rows/(float)img_mat.cols));
-    cv::resize(img_mat, display_img, window_size);
-    cv::imshow(WINDOW_NAME, display_img);
-    cv::waitKey(1);
-
 
     //==================================================
     //============== OPENPOSE PROCESSING ===============
@@ -167,6 +255,8 @@ void camera_cb(const sensor_msgs::ImageConstPtr& msg) {
     }
     
     person_keypoint_pub.publish(framePosesMsg);
+
+    display_person_image(img_mat, framePosesMsg);
 }
 
 // Heavily based on ildoonet's ros-openpose node here: https://github.com/ildoonet/ros-openpose/blob/master/openpose_ros_node/src/openpose_ros_node.cpp
