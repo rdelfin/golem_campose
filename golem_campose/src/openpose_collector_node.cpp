@@ -106,18 +106,24 @@ void fill_pose_with_keypoints(campose_msgs::PersonPose& pose, const op::Array<fl
     pose.left_ear       = pose.keypoint_data[17];
 }
 
+const std::string WINDOW_NAME = "Window 1";
+
 // Again, reference https://github.com/ildoonet/ros-openpose/blob/master/openpose_ros_node/src/openpose_ros_node.cpp
-void camera_cb(const sensor_msgs::Image::ConstPtr& msg) {
-    ROS_INFO("CB CALLED");
+void camera_cb(const sensor_msgs::ImageConstPtr& msg) {
     cv_bridge::CvImagePtr cv_ptr;
     try {
-        cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
+        //cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
+        cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
     } catch (cv_bridge::Exception& e) {
         return;
     }
     if (cv_ptr->image.empty()) return;
 
-    cv::Mat img_mat = cv_ptr->image.clone();
+    cv::Mat img_mat;
+    cv_ptr->image.copyTo(img_mat);
+
+    cv::imshow(WINDOW_NAME, img_mat);
+    cv::waitKey(1);
 
     const op::Point<int> imageSize{img_mat.cols, img_mat.rows};
     // Step 2 - Get desired scale sizes
@@ -127,11 +133,12 @@ void camera_cb(const sensor_msgs::Image::ConstPtr& msg) {
     op::Point<int> outputResolution;
     std::tie(scaleInputToNetInputs, netInputSizes, scaleInputToOutput, outputResolution)
         = scaleAndSizeExtractor->extract(imageSize);
+    ROS_INFO("Scale input to output: %f", scaleInputToOutput);
     // Step 3 - Format input image to OpenPose input and output formats
-    netInputArray = cvMatToOpInput.createArray(img_mat, scaleInputToNetInputs, netInputSizes);
+    /*netInputArray = cvMatToOpInput.createArray(img_mat, scaleInputToNetInputs, netInputSizes);
     outputArray = cvMatToOpOutput.createArray(img_mat, scaleInputToOutput, outputResolution);
     // Step 4 - Estimate poseKeypoints
-    /*poseExtractorPtr->forwardPass(netInputArray, imageSize, scaleInputToNetInputs);
+    poseExtractorPtr->forwardPass(netInputArray, imageSize, scaleInputToNetInputs);
     const auto poseKeypoints = poseExtractorPtr->getPoseKeypoints();
     const auto scaleNetToOutput = poseExtractorPtr->getScaleNetToOutput();
     // Step 5 - Render pose
@@ -156,6 +163,8 @@ void camera_cb(const sensor_msgs::Image::ConstPtr& msg) {
 // Heavily based on ildoonet's ros-openpose node here: https://github.com/ildoonet/ros-openpose/blob/master/openpose_ros_node/src/openpose_ros_node.cpp
 int main(int argc, char* argv[]) {
     ROS_INFO("Starting program...");
+
+    cv::namedWindow(WINDOW_NAME, cv::WINDOW_FULLSCREEN);
 
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
