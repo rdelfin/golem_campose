@@ -95,7 +95,7 @@ void display_person_image(const cv::Mat& img_mat, const campose_msgs::FramePoses
                   right_shoulder(person.right_shoulder.x, person.right_shoulder.y),
                   right_elbow   (person.right_elbow.x,    person.right_elbow.y),
                   right_wrist   (person.right_wrist.x,    person.right_wrist.y),
-                  left_shoulder (person.left_shoulder.x,  person.right_shoulder.y),
+                  left_shoulder (person.left_shoulder.x,  person.left_shoulder.y),
                   left_elbow    (person.left_elbow.x,     person.left_elbow.y),
                   left_wrist    (person.left_wrist.x,     person.left_wrist.y),
                   right_hip     (person.right_hip.x,      person.right_hip.y),
@@ -117,7 +117,7 @@ void display_person_image(const cv::Mat& img_mat, const campose_msgs::FramePoses
             cv::line(edited_img, nose, neck, line_color, line_thickness);
         // rshoulder-neck
         if(person.right_shoulder.confidence > 0 && person.neck.confidence > 0)
-            cv::line(edited_img, right_shoulder, neck, line_thickness, 10);
+            cv::line(edited_img, right_shoulder, neck, line_color, line_thickness);
         // rshoulder-relbow
         if(person.right_elbow.confidence > 0 && person.right_shoulder.confidence > 0)
             cv::line(edited_img, right_elbow, right_shoulder, line_color, line_thickness);
@@ -277,15 +277,11 @@ int main(int argc, char* argv[]) {
     nh.param<int>("image_width", IMAGE_WIDTH, 900);
 
 
-    ROS_INFO("ROS Setup.");
-
     // Supress OpenPose logging
     FLAGS_logtostderr = false;
     //google::InitGoogleLogging(argv[0]);
     op::ConfigureLog::setPriorityThreshold(op::Priority::NoOutput);
     op::Profiler::setDefaultX(1000);
-
-    ROS_INFO("Log setup.");
 
     const auto outputSize = op::flagsToPoint(FLAGS_output_resolution, "-1x-1");
     // netInputSize
@@ -310,12 +306,19 @@ int main(int argc, char* argv[]) {
     poseExtractorPtr->initializationOnThread();
     poseGpuRenderer->initializationOnThread();
 
-    ROS_INFO("Finished initialization");
+
+    ROS_INFO("Configuration:");
+    ROS_INFO("Camera topic:  '%s'", camera_topic.c_str());
+    ROS_INFO("Image width:    %d", IMAGE_WIDTH);
+    ROS_INFO("Models folder: '%s'", FLAGS_model_folder.c_str());
+    ROS_INFO("Pose model:    '%s'", FLAGS_model_pose.c_str());
+    ROS_INFO("Net resolution: %dx%d", netInputSize.x, netInputSize.y);
+
 
     ros::Subscriber image_sub = nh.subscribe(camera_topic, 1, camera_cb);
     person_keypoint_pub = nh.advertise<campose_msgs::FramePoses>("person_keypoints", 1000);
     
-    ROS_INFO("Subscribers and publishers setup.");
+    ROS_INFO("Starting node.");
 
     ros::spin();
 }
