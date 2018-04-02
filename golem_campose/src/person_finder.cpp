@@ -72,8 +72,6 @@ void keypointCallback(const campose_msgs::FramePoses::ConstPtr& msg) {
             torso_pose.x = person_pose.neck.x;
             torso_pose.y = person_pose.neck.y + (person_pose.neck.y - good_hip.y) / 2;
             torso_pose.confidence = std::min(person_pose.neck.confidence, good_hip.confidence);
-            
-
 
             people_angles.people[idx].color_found = get_color(people_angles.people[idx].color, torso_pose, msg->header);
         }
