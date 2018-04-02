@@ -14,13 +14,15 @@
 #include <sensor_msgs/Image.h>
 
 #include <opencv/cv.hpp>
+//#include <opencv2/highgui/highgui.hpp>
 
 #define CONFIDENCE_THRESHOLD (0.1)
 #define POS_TO_THETA         (1)
 #define QUEUE_SIZE           (100)
 #define AVG_RADIUS           (5)
+#define IMG_WINDOW           "Color Window"
 
-std::mutex image_map_lock;
+std::mutex image_map_mutex;
 std::unordered_map<int, sensor_msgs::Image> image_map;
 std::queue<int> image_queue;
 
@@ -30,13 +32,27 @@ uint64_t rostime_to_long(const ros::Time& time) {
 
 ros::Publisher person_publisher;
 
+cv::Mat draw_image;
+
 double pose_to_angle(const campose_msgs::PersonPose& person_pose);
 bool get_color(std_msgs::ColorRGBA& color, const campose_msgs::Keypoint& torso, std_msgs::Header header);
+
+bool get_image_from_header(std_msgs::Header header, cv::Mat& mat) {
+    std::unique_lock<std::mutex> image_map_lock(image_map_mutex);
+
+    if(image_map.count(rostime_to_long(header.stamp)) == 0)
+        return false;
+
+    sensor_msgs::Image img_msg = image_map[rostime_to_long(header.stamp)];
+    
+    mat = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::BGR8)->image.clone();
+    return true; 
+}
 
 void image_cb(const sensor_msgs::Image::ConstPtr& msg) {
     uint64_t key;
 
-    image_map_lock.lock();
+    std::unique_lock<std::mutex> image_map_lock(image_map_mutex);
 
     if(image_queue.size() != image_map.size())
         ROS_WARN("Person finder image queue and map are not the same size. Map has %lu elements and queue has %lu elements.", image_map.size(), image_queue.size());
@@ -50,13 +66,13 @@ void image_cb(const sensor_msgs::Image::ConstPtr& msg) {
     key = rostime_to_long(msg->header.stamp);
     image_queue.push(key);
     image_map[key] = *msg;
-
-    image_map_lock.unlock();
 }
 
 void keypointCallback(const campose_msgs::FramePoses::ConstPtr& msg) {
     campose_msgs::PersonAngles people_angles;
-    
+    if(!get_image_from_header(msg->header, draw_image))
+        ROS_WARN("There was an error fetching image");
+
     people_angles.header = msg->header;
 
     for(const campose_msgs::PersonPose& person_pose : msg->poses) {
@@ -77,6 +93,9 @@ void keypointCallback(const campose_msgs::FramePoses::ConstPtr& msg) {
         }
     }
 
+    ROS_INFO("Showing image on %s", IMG_WINDOW);
+    cv::imshow(IMG_WINDOW, draw_image);
+
     person_publisher.publish(people_angles);
 }
 
@@ -93,21 +112,15 @@ int main(int argc, char* argv[]) {
 
     ROS_INFO("Converting keypoints to angles...");
 
+    cv::namedWindow(IMG_WINDOW);
+
     ros::spin();
 }
 
 bool get_color(std_msgs::ColorRGBA& color, const campose_msgs::Keypoint& torso, std_msgs::Header header) {
-    image_map_lock.lock();
-
-    if(image_map.count(rostime_to_long(header.stamp)) == 0) {
-        image_map_lock.unlock();
+    cv::Mat img;
+    if(!get_image_from_header(header, img))
         return false;
-    }
-
-    sensor_msgs::Image img_msg = image_map[rostime_to_long(header.stamp)];
-    image_map_lock.unlock();
-
-    cv::Mat img = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::BGR8)->image.clone();
 
     double sum_r = 0.0, sum_g = 0.0, sum_b = 0.0;
     int count = 0;
