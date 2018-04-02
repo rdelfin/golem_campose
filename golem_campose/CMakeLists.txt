@@ -40,7 +40,7 @@ target_link_libraries(openpose_collector
   ${OpenPose_LIBS}
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
-  gflags
+#  gflags
 )
 
 add_executable(person_finder src/person_finder.cpp)
