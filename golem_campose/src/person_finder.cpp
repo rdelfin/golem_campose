@@ -17,7 +17,8 @@
 //#include <opencv2/highgui/highgui.hpp>
 
 #define CONFIDENCE_THRESHOLD (0.1)
-#define POS_TO_THETA         (1)
+#define POS_TO_THETA         (-0.01379)
+#define OFFSET_TO_THETA      (32.22849)
 #define QUEUE_SIZE           (100)
 #define AVG_RADIUS           (5)
 #define IMG_WINDOW           "Color Window"
@@ -174,5 +175,5 @@ double pose_to_angle(const campose_msgs::PersonPose& person_pose) {
 
     double centered_pos_x = (pos_x - 0.5) * 2.0;
 
-    return centered_pos_x * POS_TO_THETA;
+    return centered_pos_x * POS_TO_THETA + OFFSET_TO_THETA;
 }
