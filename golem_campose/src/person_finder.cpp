@@ -17,8 +17,8 @@
 //#include <opencv2/highgui/highgui.hpp>
 
 #define CONFIDENCE_THRESHOLD (0.1)
-#define POS_TO_THETA         (-0.01379)
-#define OFFSET_TO_THETA      (32.22849)
+#define POS_TO_THETA         (-0.048209) //(-0.028652)
+#define OFFSET_TO_THETA      (+48.1527) //(+52.99)
 #define QUEUE_SIZE           (100)
 #define AVG_RADIUS           (5)
 #define IMG_WINDOW           "Color Window"
