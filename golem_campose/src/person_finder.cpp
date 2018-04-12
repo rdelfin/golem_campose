@@ -1,3 +1,4 @@
+#include <cmath>
 #include <mutex>
 #include <queue>
 #include <unordered_map>
@@ -14,14 +15,12 @@
 #include <sensor_msgs/Image.h>
 
 #include <opencv/cv.hpp>
-//#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #define CONFIDENCE_THRESHOLD (0.1)
 #define POS_TO_THETA         (-0.048209) //(-0.028652)
 #define OFFSET_TO_THETA      (+48.1527) //(+52.99)
 #define QUEUE_SIZE           (100)
-#define AVG_RADIUS           (5)
-#define IMG_WINDOW           "Color Window"
 
 std::mutex image_map_mutex;
 std::unordered_map<int, sensor_msgs::Image> image_map;
@@ -36,7 +35,7 @@ ros::Publisher person_publisher;
 cv::Mat draw_image;
 
 double pose_to_angle(const campose_msgs::PersonPose& person_pose);
-bool get_color(std_msgs::ColorRGBA& color, const campose_msgs::Keypoint& torso, std_msgs::Header header);
+bool get_color(std_msgs::ColorRGBA& color, const campose_msgs::Keypoint& torso, std_msgs::Header header, int sample_radius);
 
 bool get_image_from_header(std_msgs::Header header, cv::Mat& mat) {
     std::unique_lock<std::mutex> image_map_lock(image_map_mutex);
@@ -87,15 +86,13 @@ void keypointCallback(const campose_msgs::FramePoses::ConstPtr& msg) {
             campose_msgs::Keypoint good_hip = person_pose.left_hip.confidence > 0 ? person_pose.left_hip : person_pose.right_hip;
             campose_msgs::Keypoint torso_pose;
             torso_pose.x = person_pose.neck.x;
-            torso_pose.y = person_pose.neck.y + (person_pose.neck.y - good_hip.y) / 2;
+            torso_pose.y = (person_pose.neck.y + good_hip.y) / 2;
             torso_pose.confidence = std::min(person_pose.neck.confidence, good_hip.confidence);
+            int sample_radius = abs(person_pose.neck.x - good_hip.x) / 2;
 
-            people_angles.people[idx].color_found = get_color(people_angles.people[idx].color, torso_pose, msg->header);
+            people_angles.people[idx].color_found = get_color(people_angles.people[idx].color, torso_pose, msg->header, sample_radius);
         }
     }
-
-    ROS_INFO("Showing image on %s", IMG_WINDOW);
-    cv::imshow(IMG_WINDOW, draw_image);
 
     person_publisher.publish(people_angles);
 }
@@ -113,20 +110,18 @@ int main(int argc, char* argv[]) {
 
     ROS_INFO("Converting keypoints to angles...");
 
-    cv::namedWindow(IMG_WINDOW);
-
     ros::spin();
 }
 
-bool get_color(std_msgs::ColorRGBA& color, const campose_msgs::Keypoint& torso, std_msgs::Header header) {
+bool get_color(std_msgs::ColorRGBA& color, const campose_msgs::Keypoint& torso, std_msgs::Header header, int sample_radius) {
     cv::Mat img;
     if(!get_image_from_header(header, img))
         return false;
 
     double sum_r = 0.0, sum_g = 0.0, sum_b = 0.0;
     int count = 0;
-    for(int x = std::max((int)torso.x - AVG_RADIUS, 0); x < std::min((int)torso.x + AVG_RADIUS, img.cols-1); x++) {
-        for(int y = std::max((int)torso.y - AVG_RADIUS, 0); y < std::min((int)torso.y + AVG_RADIUS, img.rows-1); y++) {
+    for(int x = std::max((int)torso.x - sample_radius, 0); x < std::min((int)torso.x + sample_radius, img.cols-1); x++) {
+        for(int y = std::max((int)torso.y - sample_radius, 0); y < std::min((int)torso.y + sample_radius, img.rows-1); y++) {
             cv::Vec3b bgrPixel = img.at<cv::Vec3b>(y, x);
             sum_b += bgrPixel.val[0];
             sum_g += bgrPixel.val[1];
