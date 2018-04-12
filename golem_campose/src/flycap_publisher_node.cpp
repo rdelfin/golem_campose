@@ -40,8 +40,14 @@ int main(int argc, char* argv[]) {
     fc2::Camera cam;
     fc2::CameraInfo camInfo;
 
+    // Find camera
+    fc2::BusManager busManager;
+    fc2::PGRGuid guid;
+    
+    busManager.GetCameraFromIndex(1, &guid);
+
     // Initialize camera
-    error = cam.Connect();
+    error = cam.Connect(&guid);
     if(error != fc2::PGRERROR_OK) {
         ROS_ERROR("There was an error connecting to flycap camera.");
         return -1;
