@@ -19,6 +19,7 @@ find_package(OpenCV REQUIRED)
 find_package(OpenPose REQUIRED)
 find_package(gflags REQUIRED)
 find_package(FlyCapture2 REQUIRED)
+find_package(PCL REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
@@ -32,6 +33,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${FlyCapture2_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 )
 
 add_executable(openpose_collector src/openpose_collector_node.cpp)
@@ -60,3 +62,6 @@ target_link_libraries(flycap_publisher
 
 add_executable(kinect_server src/kinect_server_node.cpp src/kinect_server.cpp)
 add_dependencies(kinect_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(kinect_server
+  ${PCL_LIBRARIES}
+)
