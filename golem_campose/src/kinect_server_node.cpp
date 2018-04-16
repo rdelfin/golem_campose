@@ -13,4 +13,10 @@ int main(int argc, char* argv[]) {
     ros::init(argc, argv, "kinect_server");
 
     KinectServer server(5525, pc_callback);
+    if(!server.start_server()) {
+        ROS_ERROR("There was an error starting the server. Shutting down.");
+        exit(-1);
+    }
+
+    ros::spin();
 }

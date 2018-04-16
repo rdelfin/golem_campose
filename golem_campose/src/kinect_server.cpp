@@ -6,7 +6,8 @@
 #include <ros/ros.h>
 
 KinectServer::KinectServer(uint32_t port, PointCloudCallback callback)
-    : port(port), callback(callback), open(false) {
+    : port(port), callback(callback), open(false),
+      server_thread(nullptr), thread_id_count(0) {
 
 }
 
@@ -15,17 +16,17 @@ bool KinectServer::start_server() {
     this->server_thread = new std::thread(&KinectServer::run, this);
     std::unique_lock<std::mutex> lock(this->start_mutex);
     this->start_cv.wait(lock, [this]{return this->start_done;});
-    return this->start_error;
+    return !this->start_error;
 }
 
 // Code from http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/server.c
 void KinectServer::run() {
+    ROS_INFO("Starting the kinect server.");
+
     std::unique_lock<std::mutex> lock(this->start_mutex);
 
-    int sockfd, newsockfd, clilen;
-    char buffer[256];
+    int sockfd, client_sockfd, clilen;
     struct sockaddr_in serv_addr, cli_addr;
-    int n;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if(sockfd < 0) {
@@ -49,27 +50,25 @@ void KinectServer::run() {
         return;
     }
 
+    ROS_INFO("Socket binded.");
+
     this->start_error = false;
     this->open = true;
     this->start_done = true;
     lock.unlock();
     this->start_cv.notify_all();
 
+    ROS_INFO("Socket listening...");
 
     listen(sockfd,5);
     clilen = sizeof(cli_addr);
-    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, (socklen_t*)&clilen);
-    if (newsockfd < 0) 
-        ROS_ERROR("ERROR on accept");
-    bzero(buffer,256);
-    n = read(newsockfd,buffer,255);
-    if(n < 0)
-        ROS_ERROR("ERROR reading from socket");
-    ROS_INFO("Here is the message: %s\n",buffer);
-
-    n = write(newsockfd,"I got your message",18);
-    if(n < 0)
-        ROS_ERROR("ERROR writing to socket");
+    while(client_sockfd = accept(sockfd, (struct sockaddr *) &cli_addr, (socklen_t*)&clilen)) {
+        ROS_INFO("Connected to client. Creating new thread...");
+        uint64_t thread_id = this->thread_id_count++;
+        this->socket_threads.insert(
+            {thread_id,
+            new std::thread(&KinectServer::client_recv, this, client_sockfd, this->thread_id_count-1)});
+    }
 }
 
 bool KinectServer::is_open() {
@@ -78,4 +77,28 @@ bool KinectServer::is_open() {
 
 KinectServer::~KinectServer() {
     this->open = false;
+    if(server_thread != nullptr)
+        delete server_thread;
+
+    for(std::pair<const uint64_t, std::thread*>& p : this->socket_threads) {
+        delete p.second;
+    }
+}
+
+void KinectServer::client_recv(int sockfd, uint64_t id) {
+    char* buffer = (char *)malloc(sizeof(char)*256);
+    if (sockfd < 0)
+        ROS_ERROR("ERROR on accept on socket #%lu", id);
+    bzero(buffer,256);
+    int n = read(sockfd,buffer,255);
+    if(n < 0)
+        ROS_ERROR("ERROR reading from socket #%lu", id);
+    ROS_INFO("Here is the message for socket #%lu: %s\n", id, buffer);
+
+    n = write(sockfd,"I got your message",18);
+    if(n < 0)
+        ROS_ERROR("ERROR writing to socket #%lu", id);
+
+    close(sockfd);
+    free(buffer);
 }
