@@ -3,6 +3,8 @@
 
 #include <golem_campose/kinect_server.hpp>
 
+#include <ros/ros.h>
+
 KinectServer::KinectServer(uint32_t port, PointCloudCallback callback)
     : port(port), callback(callback), open(false) {
 
@@ -12,7 +14,7 @@ bool KinectServer::start_server() {
     this->start_done = this->start_error = false;
     this->server_thread = new std::thread(&KinectServer::run, this);
     std::unique_lock<std::mutex> lock(this->start_mutex);
-    this->start_cv.wait(lock, [this]{return this->start_done})
+    this->start_cv.wait(lock, [this]{return this->start_done;});
     return this->start_error;
 }
 
@@ -24,18 +26,10 @@ void KinectServer::run() {
     char buffer[256];
     struct sockaddr_in serv_addr, cli_addr;
     int n;
-    if (argc < 2) {
-        fprintf(stderr,"ERROR, no port provided\n");
-        this->start_error = true;
-        this->start_done = true;
-        lock.unlock();
-        this->start_cv.notify_all();
-        return;
-    }
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if(sockfd < 0) {
-        error("ERROR opening socket");
+        ROS_ERROR("ERROR opening socket");
         this->start_error = true;
         this->start_done = true;
         lock.unlock();
@@ -47,7 +41,7 @@ void KinectServer::run() {
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(this->port);
     if(bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)  {
-        error("ERROR on binding");
+        ROS_ERROR("ERROR on binding");
         this->start_error = true;
         this->start_done = true;
         lock.unlock();
@@ -64,18 +58,18 @@ void KinectServer::run() {
 
     listen(sockfd,5);
     clilen = sizeof(cli_addr);
-    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, (socklen_t*)&clilen);
     if (newsockfd < 0) 
-        error("ERROR on accept");
+        ROS_ERROR("ERROR on accept");
     bzero(buffer,256);
     n = read(newsockfd,buffer,255);
     if(n < 0)
-        error("ERROR reading from socket");
-    printf("Here is the message: %s\n",buffer);
+        ROS_ERROR("ERROR reading from socket");
+    ROS_INFO("Here is the message: %s\n",buffer);
 
     n = write(newsockfd,"I got your message",18);
     if(n < 0)
-        error("ERROR writing to socket");
+        ROS_ERROR("ERROR writing to socket");
 }
 
 bool KinectServer::is_open() {

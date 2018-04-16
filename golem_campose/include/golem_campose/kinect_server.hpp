@@ -1,13 +1,16 @@
 #include <cstdint>
 #include <functional>
+#include <mutex>
+#include <condition_variable>
 
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-typedef std::function<bool, pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr> PointCloudCallback;
+typedef std::function<bool(pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr)> PointCloudCallback;
 
 class KinectServer {
 public:
