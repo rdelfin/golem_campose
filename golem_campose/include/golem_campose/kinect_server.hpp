@@ -1,11 +1,12 @@
+#include <condition_variable>
 #include <cstdint>
 #include <functional>
 #include <mutex>
-#include <condition_variable>
+#include <thread>
 
-#include <sys/types.h> 
-#include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
