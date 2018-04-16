@@ -5,6 +5,11 @@
 #include <inttypes.h>
 #include <endian.h>
 
+typedef union {
+    uint32_t d;
+    float f;
+} floatint;
+
 pcl::PointCloud<pcl::PointXYZRGBA> PcSerializer::deserialize(std::vector<uint8_t> data) {
     this->deserialize(&data[0], data.size());
 }
@@ -40,13 +45,19 @@ pcl::PointCloud<pcl::PointXYZRGBA> PcSerializer::deserialize(uint8_t* data, size
     curr += sizeof(uint64_t);
 
     for(uint64_t i = 0; i < point_count; i++) {
+        floatint fi;
         pcl::PointXYZRGBA point;
-        point.x = *(float*)&ntohl(*(uint32_t*)curr);
+
+        fi.d = ntohl(*(uint32_t*)curr);
+        point.x = fi.f;
         curr += sizeof(uint32_t);
-        point.y = *(float*)&ntohl(*(uint32_t*)curr);
+        fi.d = ntohl(*(uint32_t*)curr);
+        point.y = fi.f;
         curr += sizeof(uint32_t);
-        point.z = *(float*)&ntohl(*(uint32_t*)curr);
+        fi.d = ntohl(*(uint32_t*)curr);
+        point.z = fi.f;
         curr += sizeof(uint32_t);
+
         point.r = *curr;
         curr += sizeof(uint8_t);
         point.g = *curr;
