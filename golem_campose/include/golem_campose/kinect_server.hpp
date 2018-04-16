@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <unordered_map>
 
@@ -15,6 +16,9 @@
 #include <pcl/point_types.h>
 
 typedef std::function<bool(pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr)> PointCloudCallback;
+
+const std::string HANDSHAKE_MSG = "hello";
+const std::string CLOSE_MSG = "close";
 
 class KinectServer {
 public:

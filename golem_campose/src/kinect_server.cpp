@@ -87,17 +87,24 @@ KinectServer::~KinectServer() {
 
 void KinectServer::client_recv(int sockfd, uint64_t id) {
     char* buffer = (char *)malloc(sizeof(char)*256);
+
     if (sockfd < 0)
         ROS_ERROR("ERROR on accept on socket #%lu", id);
     bzero(buffer,256);
+
+    // Handshake
     int n = read(sockfd,buffer,255);
     if(n < 0)
         ROS_ERROR("ERROR reading from socket #%lu", id);
-    ROS_INFO("Here is the message for socket #%lu: %s\n", id, buffer);
 
-    n = write(sockfd,"I got your message",18);
+    if(strlen(buffer) == HANDSHAKE_MSG.length() &&
+       strncmp(HANDSHAKE_MSG.c_str(), buffer, HANDSHAKE_MSG.length()) == 0)
+
+    n = write(sockfd, HANDSHAKE_MSG.c_str(), HANDSHAKE_MSG.length());
     if(n < 0)
         ROS_ERROR("ERROR writing to socket #%lu", id);
+
+    ROS_INFO("Successfully finished handshake");
 
     close(sockfd);
     free(buffer);
