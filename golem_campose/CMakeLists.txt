@@ -57,3 +57,6 @@ target_link_libraries(flycap_publisher
   ${catkin_LIBRARIES}
   ${FlyCapture2_LIBRARIES}
 )
+
+add_executable(kinect_server src/kinect_server_node.cpp src/kinect_server.cpp)
+add_dependencies(kinect_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
