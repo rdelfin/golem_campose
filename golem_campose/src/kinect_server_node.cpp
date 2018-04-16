@@ -4,6 +4,6 @@ bool setup_server() {
 
 }
 
-int main(char* argv[], int argc) {
-    ros::init(argv, argc, "kinect_server");
+int main(int argc, char* argv[]) {
+    ros::init(argc, argv, "kinect_server");
 }
