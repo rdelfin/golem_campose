@@ -63,5 +63,6 @@ target_link_libraries(flycap_publisher
 add_executable(kinect_server src/kinect_server_node.cpp src/kinect_server.cpp)
 add_dependencies(kinect_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(kinect_server
+  ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
 )
