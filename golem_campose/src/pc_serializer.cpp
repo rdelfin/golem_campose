@@ -7,7 +7,7 @@
 
 #define UINT32_TO_FLOAT(val) ({ \
     uint32_t v = val;           \
-    float f = *(float*)(&v);  \
+    float f = *(float*)(&v);    \
     val;                        \
 })
 
