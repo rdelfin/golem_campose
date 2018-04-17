@@ -63,8 +63,8 @@ void KinectServer::run() {
     listen(sockfd,5);
     clilen = sizeof(cli_addr);
     while(client_sockfd = accept(sockfd, (struct sockaddr *) &cli_addr, (socklen_t*)&clilen)) {
-        ROS_INFO("Connected to client. Creating new thread...");
         uint64_t thread_id = this->thread_id_count++;
+        ROS_INFO("Connected to client. Creating new thread at id %lu...", thread_id);
         this->socket_threads.insert(
             {thread_id,
             new std::thread(&KinectServer::client_recv, this, client_sockfd, this->thread_id_count-1)});
@@ -89,22 +89,22 @@ void KinectServer::client_recv(int sockfd, uint64_t id) {
     char* buffer = (char *)malloc(sizeof(char)*256);
 
     if (sockfd < 0)
-        ROS_ERROR("ERROR on accept on socket #%lu", id);
+        ROS_ERROR("Socket %lu\tERROR on accept", id);
     bzero(buffer,256);
 
     // Handshake
     int n = read(sockfd,buffer,255);
     if(n < 0)
-        ROS_ERROR("ERROR reading from socket #%lu", id);
+        ROS_ERROR("Socket %lu\tERROR reading", id);
 
     if(strlen(buffer) == HANDSHAKE_MSG.length() &&
        strncmp(HANDSHAKE_MSG.c_str(), buffer, HANDSHAKE_MSG.length()) == 0)
 
     n = write(sockfd, HANDSHAKE_MSG.c_str(), HANDSHAKE_MSG.length());
     if(n < 0)
-        ROS_ERROR("ERROR writing to socket #%lu", id);
+        ROS_ERROR("Socket %lu\tERROR writing to socket", id);
 
-    ROS_INFO("Successfully finished handshake");
+    ROS_INFO("Socket %lu\tSuccessfully finished handshake", id);
 
     close(sockfd);
     free(buffer);
