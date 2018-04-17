@@ -10,6 +10,32 @@ typedef union {
     float f;
 } floatint;
 
+bool PcSerializer::header_size(uint8_t* header_data, uint64_t len, uint64_t& size) {
+    if(len <= 29)
+        return false;
+
+    // 4 bytes for seq + 8 bytes for stamp
+    uint64_t frame_id_len = be64toh(*(uint64_t*)(header_data + 12));
+
+    size = 31 + frame_id_len;
+    return true;
+}
+
+bool PcSerializer::kinect_frame_size(uint8_t* header_data, uint64_t len, uint64_t& frame_size) {
+    uint64_t h_size;
+    if(!header_size(header_data, len, h_size)) return false;
+
+    // Check the entire header is contained
+    if(len < h_size)
+        return false;
+    
+    uint64_t point_count = be64toh(*(uint64_t*)(header_data + h_size - 8));
+    uint64_t point_size = 3*sizeof(float) + 4*sizeof(char);
+    frame_size = point_count*point_size + h_size;
+    return true;
+}
+
+
 pcl::PointCloud<pcl::PointXYZRGBA> PcSerializer::deserialize(std::vector<uint8_t> data) {
     this->deserialize(&data[0], data.size());
 }
@@ -19,6 +45,7 @@ pcl::PointCloud<pcl::PointXYZRGBA> PcSerializer::deserialize(uint8_t* data, size
     uint64_t frame_id_len, point_count;
     char* buffer;
     pcl::PointCloud<pcl::PointXYZRGBA> pc;
+    pc.clear();
 
     pc.header.seq = ntohl(*(uint32_t*)curr);
     curr += sizeof(uint32_t);
